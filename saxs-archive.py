@@ -1,3 +1,31 @@
+#!/usr/bin/env python
+#
+# Copyright (c) 2013, Synchrotron Light Source Australia Pty Ltd
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#   * Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#   * Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#   * Neither the Australian Synchrotron nor the names of its contributors
+#     may be used to endorse or promote products derived from this software
+#     without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 import os
 import logging
 import argparse
@@ -67,31 +95,31 @@ class EventHandler(pyinotify.ProcessEvent):
 
             # set the rsync options
             options = "-aq"
-            if self._config['compress']:
-                options += "z"
-            if self._config['checksum']:
-                options += "c"
-            
+            options += "z" if self._config['compress'] else ""
+            options += "c" if self._config['checksum'] else ""
+                
             # run the rsync process
-            # --append ?
-            # --exclude ? pattern?
             call(["rsync", options, "-e ssh",
                   source, "%s@%s:%s"%(self._config['user'],
                                       self._config['host'],
                                       target)])
 
             # change the permission of the files
+            sudo_str = "sudo " if settings['sudo'] else ""
+
             _, stdout, stderr = \
-                client.exec_command("chmod -R %s %s"%(self._config['chmod'],
-                                                      target))
+                client.exec_command("%schmod -R %s %s"%(sudo_str,
+                                                        self._config['chmod'],
+                                                        target))
             if stderr.read() != "":
                 logger.error("Couldn't change the permission: %s"%stderr)
 
             # change the ownership of the files
             _, stdout, stderr = \
-                client.exec_command("chown -R %s:%s %s"%(self._config['owner'],
-                                                         self._config['group'],
-                                                         target))
+                client.exec_command("%schown -R %s:%s %s"%(sudo_str,
+                                                           self._config['owner'],
+                                                           self._config['group'],
+                                                           target))
             if stderr.read() != "":
                 logger.error("Couldn't change the ownership: %s"%stderr)
 
@@ -125,6 +153,7 @@ settings['watch'] = conf.get('source', 'watch')
 settings['src_folder'] = conf.get('source', 'folder')
 settings['host'] = conf.get('target', 'host')
 settings['user'] = conf.get('target', 'user')
+settings['sudo'] = conf.getboolean('target', 'sudo')
 settings['tar_folder'] = conf.get('target', 'folder')
 settings['chmod'] = conf.get('target', 'permission')
 settings['owner'] = conf.get('target', 'owner')
