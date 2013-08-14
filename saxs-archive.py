@@ -31,7 +31,7 @@ import logging
 import argparse
 import paramiko
 import pyinotify
-import ConfigParser
+import settings
 from string import Template
 from subprocess import call
 
@@ -105,7 +105,7 @@ class EventHandler(pyinotify.ProcessEvent):
                                       target)])
 
             # change the permission of the files
-            sudo_str = "sudo " if settings['sudo'] else ""
+            sudo_str = "sudo " if self._config['sudo'] else ""
 
             _, stdout, stderr = \
                 client.exec_command("%schmod -R %s %s"%(sudo_str,
@@ -133,8 +133,6 @@ class EventHandler(pyinotify.ProcessEvent):
 #========================================
 #              Main script
 #========================================
-settings = {}
-
 # parse the command line arguments
 parser = argparse.ArgumentParser(prog='saxs-archive',
                                  description='realtime data archiver')
@@ -143,42 +141,28 @@ parser.add_argument('<config_file>', action='store',
 args = vars(parser.parse_args())
 
 # read the configuration file
-conf = ConfigParser.ConfigParser()
-conf.read(args['<config_file>'])
-
-# read the configuration values
-settings['compress'] = conf.getboolean('rsync', 'compress')
-settings['checksum'] = conf.getboolean('rsync', 'checksum')
-settings['watch'] = conf.get('source', 'watch')
-settings['src_folder'] = conf.get('source', 'folder')
-settings['host'] = conf.get('target', 'host')
-settings['user'] = conf.get('target', 'user')
-settings['sudo'] = conf.getboolean('target', 'sudo')
-settings['tar_folder'] = conf.get('target', 'folder')
-settings['chmod'] = conf.get('target', 'permission')
-settings['owner'] = conf.get('target', 'owner')
-settings['group'] = conf.get('target', 'group')
+config = settings.read(args['<config_file>'])
 
 
 #----------------------------------
 #  Settings and validation checks
 #----------------------------------
 # check if the watchfolder exists
-if not os.path.isdir(settings['watch']):
-    logger.error("The watch folder '%s' doesn't exist!"%settings['watch'])
+if not os.path.isdir(config['watch']):
+    logger.error("The watch folder '%s' doesn't exist!"%config['watch'])
     exit()
 
 # build the folder list
-settings['src_folder_list'] = settings['src_folder'].split('/')
+config['src_folder_list'] = config['src_folder'].split('/')
 
 # check if all keys in the target folder string have been declared in the
 # source folder string
 try:
     check_dict = {}
-    for token in settings['src_folder_list']:
+    for token in config['src_folder_list']:
         if token.startswith('${') and token.endswith('}'):
             check_dict[token[2:len(token)-1]] = ""
-    Template(settings['tar_folder']).substitute(check_dict)
+    Template(config['tar_folder']).substitute(check_dict)
 except KeyError, e:
     logger.error("Key %s doesn't exist in the source folder settings!"%e)
     exit()
@@ -187,7 +171,7 @@ except KeyError, e:
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 try:
-    client.connect(settings['host'], username=settings['user'])
+    client.connect(config['host'], username=config['user'])
     client.close()
 except paramiko.SSHException, e:
     logger.error("Can't connect to target host: %s"%e)
@@ -200,11 +184,11 @@ except paramiko.SSHException, e:
 #--------------------------------
 # create the watch manager, event handler and notifier
 watch_manager = pyinotify.WatchManager()
-handler = EventHandler(settings)
+handler = EventHandler(config)
 notifier = pyinotify.Notifier(watch_manager, handler)
 
 # add the watch directory to the watch manager
-watch_manager.add_watch(settings['watch'], pyinotify.IN_CLOSE_WRITE, rec=True)
+watch_manager.add_watch(config['watch'], pyinotify.IN_CLOSE_WRITE, rec=True)
 
 # start watching
 notifier.loop()
