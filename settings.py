@@ -5,6 +5,8 @@ def read(conf_path):
     conf.read(conf_path)
 
     settings = {}
+    settings['debug'] = conf.getboolean('logging', 'debug')
+    settings['sentry'] = conf.get('logging', 'sentry')
     settings['compress'] = conf.getboolean('rsync', 'compress')
     settings['checksum'] = conf.getboolean('rsync', 'checksum')
     settings['watch'] = conf.get('source', 'watch')

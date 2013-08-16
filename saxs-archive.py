@@ -35,8 +35,14 @@ import settings
 from string import Template
 from subprocess import call
 
-logging.basicConfig()
-logger = logging.getLogger("saxs-archive")
+# check if raven is available
+try:
+    from raven import Client
+    from raven.conf import setup_logging
+    from raven.handlers.logging import SentryHandler
+    raven_available = True
+except ImportError:
+    raven_available = False
 
 #========================================
 #             Event handler
@@ -125,7 +131,10 @@ class EventHandler(pyinotify.ProcessEvent):
 
             client.close()
         except paramiko.SSHException, e:
-            logger.error("SSH connection threw an exception: %s"%e)
+            if raven_available:
+                raven_client.captureException()
+            else:
+                logger.error("SSH connection threw an exception: %s"%e)
             client.close()
         return
 
@@ -145,12 +154,29 @@ config = settings.read(args['<config_file>'])
 
 
 #----------------------------------
+#             Logging
+#----------------------------------
+logging.basicConfig()
+if config['debug']:
+    logging.getLogger().setLevel(logging.INFO)
+else:
+    logging.getLogger().setLevel(logging.ERROR)
+
+logger = logging.getLogger("saxs-archive")
+if raven_available and config['sentry']:
+    raven_client = Client(config['sentry'])
+    setup_logging(SentryHandler(raven_client))
+    logger.info("Raven is available. Logging will be sent to Sentry")
+
+
+#----------------------------------
 #  Settings and validation checks
 #----------------------------------
 # check if the watchfolder exists
 if not os.path.isdir(config['watch']):
     logger.error("The watch folder '%s' doesn't exist!"%config['watch'])
     exit()
+logger.info("Watchfolder exists and is valid")
 
 # build the folder list
 config['src_folder_list'] = config['src_folder'].split('/')
@@ -163,8 +189,12 @@ try:
         if token.startswith('${') and token.endswith('}'):
             check_dict[token[2:len(token)-1]] = ""
     Template(config['tar_folder']).substitute(check_dict)
+    logger.info("Source and target folder keys match")
 except KeyError, e:
-    logger.error("Key %s doesn't exist in the source folder settings!"%e)
+    if raven_available:
+        raven_client.captureException()
+    else:
+        logger.error("Key %s doesn't exist in the source folder settings!"%e)
     exit()
 
 # check if the target host is reachable (uses key pair authentication)
@@ -173,8 +203,12 @@ client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 try:
     client.connect(config['host'], username=config['user'])
     client.close()
+    logger.info("Connection to the target host was successfully established")
 except paramiko.SSHException, e:
-    logger.error("Can't connect to target host: %s"%e)
+    if raven_available:
+        raven_client.captureException()
+    else:
+        logger.error("Can't connect to target host: %s"%e)
     client.close()
     exit()
 
@@ -189,6 +223,8 @@ notifier = pyinotify.Notifier(watch_manager, handler)
 
 # add the watch directory to the watch manager
 watch_manager.add_watch(config['watch'], pyinotify.IN_CLOSE_WRITE, rec=True)
+logger.info("Created the notification system and added the watchfolder")
 
 # start watching
+logger.info("Waiting for notifications...")
 notifier.loop()
