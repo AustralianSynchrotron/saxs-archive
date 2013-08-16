@@ -4,7 +4,7 @@ import paramiko
 import ConfigParser
 from string import Template
 
-logger = logging.getLogger("saxs-archive:settings")
+logger = logging.getLogger("settings")
 
 def read(conf_path):
     """

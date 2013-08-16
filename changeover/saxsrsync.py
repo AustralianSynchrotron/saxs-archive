@@ -3,10 +3,8 @@ import logging
 import argparse
 import paramiko
 import pyinotify
-from changeover import settings
+from changeover import settings, syncutils
 from common import saxslog
-from string import Template
-from subprocess import call
 
 class EventHandler(pyinotify.ProcessEvent):
     """
@@ -31,34 +29,16 @@ class EventHandler(pyinotify.ProcessEvent):
         # check the length of the triggered path
         trg_path_list = event.path.split('/')
         src_path_list = self._config['src_folder_list']
-        if len(trg_path_list) < len(src_path_list):
+        if len(trg_path_list) < len(self._config['src_folder_list']):
             self._logger.error("The triggered path is shorter than the source path!")
             return
 
-        # match the path elements between the triggered and the source path
-        # and extract the template values from the triggered path
-        tmp_dict = {}
-        for i in range(len(src_path_list)):
-            trg_element = trg_path_list[i]
-            path_element = src_path_list[i]
-            if path_element.startswith('${') and path_element.endswith('}'):
-                tmp_dict[path_element[2:len(path_element)-1]] = trg_element
-            else:
-                if path_element != trg_element:
-                    self._logger.error("Non matching path element '%s' \
-                                        found in triggered path!"%trg_element)
-                    return
-
-        # substitute the template parameters in the source and target path
-        source = Template(self._config['src_folder']).substitute(tmp_dict)
-        target = Template(self._config['tar_folder']).substitute(tmp_dict)
-
-        # make sure the paths end with a trailing slash
-        if not source.endswith("/"):
-            source += "/."
-
-        if not target.endswith("/"):
-            target += "/"
+        # build the source and target paths for rsync
+        try:
+            source, target = syncutils.build_sync_paths(trg_path_list,
+                                                        self._config)
+        except Exception, e:
+            logger.error(e)
 
         # Copy the files to the archive
         client = paramiko.SSHClient()
@@ -66,43 +46,25 @@ class EventHandler(pyinotify.ProcessEvent):
         try:
             client.connect(self._config['host'], username=self._config['user'])
 
-            # check if the remote directory already exists. If not, create it
-            _, stdout, stderr = \
-                client.exec_command("[ -d %s ] || mkdir -p %s"%(target, target))
-            if stderr.read() != "":
+            # if the remote directory doesn't exist, create it
+            if not syncutils.mkdir_remote(client, target):
                 self._logger.error("Couldn't create target directory: %s"%stderr)
                 client.close()
                 return
 
             # set the rsync options
-            options = "-aq"
+            options = "-a"
             options += "z" if self._config['compress'] else ""
             options += "c" if self._config['checksum'] else ""
-                
-            # run the rsync process
-            call(["rsync", options, "-e ssh",
-                  source, "%s@%s:%s"%(self._config['user'],
-                                      self._config['host'],
-                                      target)])
+            
+            try:    
+                # run the rsync process
+                syncutils.run_rsync(source, target, options, self._config)
 
-            # change the permission of the files
-            sudo_str = "sudo " if self._config['sudo'] else ""
-
-            _, stdout, stderr = \
-                client.exec_command("%schmod -R %s %s"%(sudo_str,
-                                                        self._config['chmod'],
-                                                        target))
-            if stderr.read() != "":
-                self._logger.error("Couldn't change the permission: %s"%stderr)
-
-            # change the ownership of the files
-            _, stdout, stderr = \
-                client.exec_command("%schown -R %s:%s %s"%(sudo_str,
-                                                           self._config['owner'],
-                                                           self._config['group'],
-                                                           target))
-            if stderr.read() != "":
-                self._logger.error("Couldn't change the ownership: %s"%stderr)
+                # change the permission of the files
+                syncutils.change_permissions(client, target, self._config)
+            except Exception, e:
+                logger.error(e)
 
             client.close()
         except paramiko.SSHException, e:
@@ -111,7 +73,6 @@ class EventHandler(pyinotify.ProcessEvent):
             else:
                 self._logger.error("SSH connection threw an exception: %s"%e)
             client.close()
-        return
 
 
 def main():
@@ -131,7 +92,7 @@ def main():
     # setup the logging
     logger, raven_client = saxslog.setup(config, "changeover-rsync")
 
-    # Settings and validation checks
+    # settings and validation checks
     if not settings.validate(config, raven_client):
         exit()
 
