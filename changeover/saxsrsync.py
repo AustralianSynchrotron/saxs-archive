@@ -38,7 +38,7 @@ class EventHandler(pyinotify.ProcessEvent):
             source, target = syncutils.build_sync_paths(trg_path_list,
                                                         self._config)
         except Exception, e:
-            logger.error(e)
+            self._logger.error(e)
 
         # Copy the files to the archive
         client = paramiko.SSHClient()
@@ -47,8 +47,8 @@ class EventHandler(pyinotify.ProcessEvent):
             client.connect(self._config['host'], username=self._config['user'])
 
             # if the remote directory doesn't exist, create it
-            if not syncutils.mkdir_remote(client, target):
-                self._logger.error("Couldn't create target directory: %s"%stderr)
+            if not syncutils.mkdir_remote(client, target, self._config):
+                self._logger.error("Couldn't create target directory: %s"%target)
                 client.close()
                 return
 
@@ -62,9 +62,9 @@ class EventHandler(pyinotify.ProcessEvent):
                 syncutils.run_rsync(source, target, options, self._config)
 
                 # change the permission of the files
-                syncutils.change_permissions(client, target, self._config)
+                #syncutils.change_permissions(client, target, self._config)
             except Exception, e:
-                logger.error(e)
+                self._logger.error(e)
 
             client.close()
         except paramiko.SSHException, e:
@@ -102,7 +102,7 @@ def main():
     notifier = pyinotify.Notifier(watch_manager, handler)
 
     # add the watch directory to the watch manager
-    watch_manager.add_watch(config['watch'], pyinotify.IN_CLOSE_WRITE, rec=True)
+    watch_manager.add_watch(config['watch'], pyinotify.IN_CLOSE_WRITE, rec=True, auto_add=True)
     logger.info("Created the notification system and added the watchfolder")
 
     # start watching

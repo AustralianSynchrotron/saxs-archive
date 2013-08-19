@@ -1,3 +1,4 @@
+import os
 import logging
 from string import Template
 from subprocess import Popen, PIPE
@@ -35,12 +36,20 @@ def build_sync_paths(input_path_list, config):
     return source, target
 
 
-def mkdir_remote(client_ssh, remote_dir):
+def mkdir_remote(client_ssh, remote_dir, config):
     """
     """
+    sudo_str = "sudo" if config['sudo'] else ""
     # check whether the remote directory already exists. If not, create it.
-    _, stdout, stderr = \
-        client_ssh.exec_command("[ -d %s ] || mkdir -p %s"%(remote_dir, remote_dir))
+    remote_list = remote_dir.split("/")
+    curr_dir = "/"
+    for dir in remote_list:
+        if dir and dir != ".":
+    	    curr_dir = os.path.join(curr_dir, dir)
+	    _, stdout, stderr = \
+        	client_ssh.exec_command("[ -d %s ] || (%s mkdir %s \
+                         && %s chown -R %s:%s %s)"%(curr_dir, sudo_str, curr_dir, sudo_str, config['user'], config['user'], curr_dir))
+    #client_ssh.exec_command("%s chown -R %s:%s %s"%(sudo_str, config['user'], config['user'], remote_dir))
     return stderr.read() == ""
 
 
