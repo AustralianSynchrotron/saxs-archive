@@ -24,7 +24,7 @@ def main():
     # setup the global logging
     logger, raven_client = saxslog.setup(config, "changeover-rsync")
     if raven_client != None:
-        setup_logging(SentryHandler(raven_client))
+        saxslog.setup_logging(saxslog.SentryHandler(raven_client))
         logger.info("Raven is available. Logging will be sent to Sentry")
 
     # settings and validation checks
@@ -41,7 +41,8 @@ def main():
     notifier = pyinotify.Notifier(watch_manager, handler)
 
     # add the watch directory to the watch manager
-    watch_manager.add_watch(config['watch'], pyinotify.IN_CLOSE_WRITE, rec=True, auto_add=True)
+    watch_manager.add_watch(config['watch'], pyinotify.IN_CLOSE_WRITE,
+                            rec=True, auto_add=True)
     logger.info("Created the notification system and added the watchfolder")
 
     # start watching
