@@ -1,14 +1,12 @@
 import os
-import logging
 import paramiko
 import ConfigParser
 from string import Template
-
-logger = logging.getLogger("settings")
+from common import saxslog
 
 def read(conf_path):
     """
-    Read the settings from the specified file.
+    Read the settings from the specified configuration file.
     conf_path: The path to the settings file
     Returns a dictionary with the settings.
     """
@@ -37,16 +35,18 @@ def read(conf_path):
     return settings
 
 
-def validate(settings, raven_client=None):
+def validate(config):
     """
     Performs a validation of the settings.
-    settings: Reference to the settings dictionary that should be validated.
+    config: Reference to the settings dictionary that should be validated.
     raven_client: Optional reference to a raven client to log exceptions.
     Returns True if the settings are valid, otherwise False is returned.
     """
+    logger, raven_client = saxslog.setup(config, __name__)
+
     # check if the watchfolder exists
-    if not os.path.isdir(settings['watch']):
-        logger.error("The watch folder '%s' doesn't exist!"%settings['watch'])
+    if not os.path.isdir(config['watch']):
+        logger.error("The watch folder '%s' doesn't exist!"%config['watch'])
         return False
     logger.info("Watchfolder exists and is valid")
 
@@ -54,10 +54,10 @@ def validate(settings, raven_client=None):
     # source folder string
     try:
         check_dict = {}
-        for token in settings['src_folder_list']:
+        for token in config['src_folder_list']:
             if token.startswith('${') and token.endswith('}'):
                 check_dict[token[2:len(token)-1]] = ""
-        Template(settings['tar_folder']).substitute(check_dict)
+        Template(config['tar_folder']).substitute(check_dict)
         logger.info("Source and target folder keys match")
     except KeyError, e:
         if raven_client != None:
@@ -70,7 +70,7 @@ def validate(settings, raven_client=None):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(settings['host'], username=settings['user'])
+        client.connect(config['host'], username=config['user'])
         client.close()
         logger.info("Connection to the target host was successfully established")
     except paramiko.SSHException, e:

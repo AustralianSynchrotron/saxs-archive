@@ -24,12 +24,7 @@ def setup(config, logger_name):
     else:
         logging.getLogger().setLevel(logging.ERROR)
 
-    logger = logging.getLogger(logger_name)
-    raven_client = None
-
     if raven_available and config['sentry']:
-        raven_client = Client(config['sentry'])
-        setup_logging(SentryHandler(raven_client))
-        logger.info("Raven is available. Logging will be sent to Sentry")
-
-    return logger, raven_client
+        return logging.getLogger(logger_name), Client(config['sentry'])
+    else:
+        return logging.getLogger(logger_name), None

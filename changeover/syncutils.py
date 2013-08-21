@@ -3,11 +3,14 @@ import logging
 from string import Template
 from subprocess import Popen, PIPE
 
-logger = logging.getLogger("settings")
-
+logger = logging.getLogger(__name__)
 
 def build_sync_paths(input_path_list, config):
     """
+    Build the source and target paths for rsync by replacing the
+    template parameters with the correct values
+    input_path_list: the triggered directory split into a list of src_folder_list
+    config: the configuration dictionary
     """
     # match the path elements between the input and the config source path
     # and extract the template values from the triggered path
@@ -31,59 +34,109 @@ def build_sync_paths(input_path_list, config):
         source += "/"
 
     if not target.endswith("/"):
-        target += "/."
+        target += "/"
 
     return source, target
 
 
-def mkdir_remote(client_ssh, remote_dir, config):
+def mkdir_remote(remote_dir, client_ssh, config):
     """
+    Make the remote directory by creating each subdirectory separately.
+    Change the permission of each newly created sub-directory to the target
+    owner/group permission. 
+    remote_dir: the remote directory that should be created
+    client_ssh: reference to the ssh client object
+    config: reference to the config object
     """
-    sudo_str = "sudo" if config['sudo'] else ""
-    # check whether the remote directory already exists. If not, create it.
     remote_list = remote_dir.split("/")
-    curr_dir = "/"
-    for dir in remote_list:
-        if dir and dir != ".":
-    	    curr_dir = os.path.join(curr_dir, dir)
-	    _, stdout, stderr = \
-        	client_ssh.exec_command("[ -d %s ] || (%s mkdir %s \
-                         && %s chown -R %s:%s %s)"%(curr_dir, sudo_str, curr_dir, sudo_str, config['user'], config['user'], curr_dir))
-    #client_ssh.exec_command("%s chown -R %s:%s %s"%(sudo_str, config['user'], config['user'], remote_dir))
-    return stderr.read() == ""
+    cmd  = "[ -d ${dir} ] || (${sudo} mkdir ${dir}"
+    cmd += " && ${sudo} chown -R ${user}:${group} ${dir}"
+    cmd += " && ${sudo} chmod -R ${chmod} ${dir})"
+    cmd_dict = {'sudo' : "sudo" if config['sudo'] else "",
+                'dir'  : "",
+                'user' : config['owner'],
+                'group': config['group'],
+                'chmod': config['chmod']
+               }
+
+    # loop over all subdirectories. If the subdirectory doesn't exist, create it
+    total_dir = "/"
+    for curr_dir in remote_list:
+        if not curr_dir:
+            continue
+
+        # build the command line
+        total_dir = os.path.join(total_dir, curr_dir)
+        cmd_dict['dir'] = total_dir
+
+        # execute the ssh command
+        _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
+        client_error = stderr.read()
+        if client_error:
+            raise Exception("Couldn't create target directory: '%s'"\
+                             %client_error.rstrip())
 
 
-def run_rsync(source, target, options, config):
+def run_rsync(source, target, client_ssh, config, options=""):
     """
+    Run rsync in order to copy the files from the detector server to the
+    archive server. The process is done in three steps:
+    1) Change the owner of the target directory to the user rsync uses to
+       login to the archive server
+    2) Call rsync to copy the data from the detector server to the archive
+    3) Change the owner of the target directory back to the owner and group
+       specified in the configuration file
+    source: the source path on the detector server
+    target: the target path on the archive server
+    client_ssh: reference to the ssh client object
+    config: reference to the config object
+    options: additional options that should be given to rsync
+    Returns a dictionary with information collected from rsync
     """
+    cmd =  "${sudo} chown -R ${user}:${group} ${dir}"
+    cmd += " && ${sudo} chmod -R ${chmod} ${dir}"
+    cmd_dict = {'sudo' : "sudo" if config['sudo'] else "",
+                'dir'  : target,
+                'user' : "",
+                'group': "",
+                'chmod': config['chmod']
+               }
+
+    # pre-chmod: change the owner of the target dir + files to the login user
+    cmd_dict['user'] = config['user']
+    cmd_dict['group'] = config['user']
+    _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
+    client_error = stderr.read()
+    if client_error:
+        raise Exception("Couldn't change the ownership of the target directory: '%s'"\
+                        %client_error.rstrip())
+
+    # rsync: call rsync and collect the stats information
     proc = Popen(["rsync", options, "--stats", "-e ssh",
                   source, "%s@%s:%s"%(config['user'], config['host'], target)],
                   stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate()
-    if stderr != "":
-        raise Exception("rsync error: %s"%stderr)
-    #TODO: parse the stdout output into a dictionary
-    #print stdout
+    if stderr:
+        raise Exception("Error while calling rsync: '%s'"%stderr)
 
+    out_list = stdout.split("\n")
+    try:
+        result_dict = {'files_total': int((out_list[1].split(':'))[1].strip())-1,
+                       'files_transfered': int((out_list[2].split(':'))[1].strip()),
+                       'bytes_sent': int((out_list[10].split(':'))[1].strip()),
+                       'bytes_received': int((out_list[11].split(':'))[1].strip())
+                      }
+    except:
+        result_dict = {}
 
-def change_permissions(client_ssh, target, config):
-    """
-    """
-    sudo_str = "sudo " if config['sudo'] else ""
+    # post-chmod: change the owner of the target dir + files to the target user
+    cmd_dict['user'] = config['owner']
+    cmd_dict['group'] = config['group']
+    _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
+    client_error = stderr.read()
+    if client_error:
+        raise Exception("Couldn't change the ownership of the target directory: '%s'"\
+                        %client_error.rstrip())
 
-    _, stdout, stderr = \
-        client_ssh.exec_command("%schmod -R %s %s"%(sudo_str,
-                                                    config['chmod'],
-                                                    target))
-    if stderr.read() != "":
-        raise Exception("Couldn't change the permission: %s"%stderr.read())
-
-    # change the ownership of the files
-    _, stdout, stderr = \
-        client_ssh.exec_command("%schown -R %s:%s %s"%(sudo_str,
-                                                       config['owner'],
-                                                       config['group'],
-                                                       target))
-    if stderr.read() != "":
-        raise Exception("Couldn't change the ownership: %s"%stderr.read())
-
+    # return a dictionary with the result of rsync
+    return result_dict
