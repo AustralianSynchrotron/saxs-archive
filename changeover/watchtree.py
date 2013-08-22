@@ -1,0 +1,114 @@
+import os
+import logging
+import pyinotify
+
+logger = logging.getLogger(__name__)
+
+class Node(object):
+    """
+    A single node in the directory tree.
+    """
+
+    def __init__(self, watch_manager, file_handler):
+        """
+        Constructor of the tree node.
+        watch_manager: reference to the watch manager that maintains the watches.
+        file_handler: reference to a file handler object
+        """
+        self._path = ""
+        self._wd = -1
+        self._nodes = []
+        self._watch_manager = watch_manager
+        self._file_handler = file_handler
+
+
+    def create(self, path):
+        """
+        Create a watch for this node and the child nodes for the sub-directories
+        of the specified path
+        path: the path of this node and the parent path for this nodes children
+        """
+        # add a watch on this node
+        mask = pyinotify.IN_CLOSE_WRITE | pyinotify.IN_CREATE | \
+               pyinotify.IN_DELETE | pyinotify.IN_MOVED_TO
+        wd = self._watch_manager.add_watch(path, mask,
+                                           proc_fun=self.handle_event).items()[0]
+        self._path = wd[0]
+        self._wd = wd[1]
+
+        # add the nodes for the sub-directories recursively
+        for curr_dir in os.listdir(path):
+            abs_dir = os.path.join(path, curr_dir)
+            if os.path.isdir(abs_dir):
+                new_node = Node(self._watch_manager, self._file_handler)
+                self._nodes.append(new_node)
+                new_node.create(abs_dir)
+
+
+    def delete(self):
+        """
+        Deletes the watch of this node and all children nodes
+        """
+        self._watch_manager.rm_watch(self._wd)
+        for node in self._nodes:
+            node.delete()
+        del self._nodes[:]
+
+
+    def handle_event(self, event):
+        """
+        The callback method for notification events
+        event: the pyinotify event object
+        """
+        # if it is a directory remove all sub-nodes then rebuild the sub-tree.
+        if event.dir:
+            self.delete()
+            self.create(event.path)
+            logger.info("Recreated the sub-tree '%s'"%event.path)
+        else:
+            if event.mask == pyinotify.IN_CLOSE_WRITE:
+                self._file_handler.process(event.path)
+
+
+class WatchTree(object):
+    """
+    The tree of folders that are being watched for changes. Implements the full
+    hierarchical structure of the target directories. If a folder is created,
+    renamed or deleted, the part of the tree that is affected by this change
+    is automatically rebuild. The associated pyinotify watches are also updated.
+    """
+    def __init__(self, file_handler):
+        """
+        Constructor of the watch tree class
+        file_handler: reference to a file handler object
+        """
+        self._watch_manager = pyinotify.WatchManager()
+        self._notifier = pyinotify.Notifier(self._watch_manager)
+        self._root = Node(self._watch_manager, file_handler)
+
+    def create(self, root):
+        """
+        Create the initial tree. Starts with the root directory and builds the
+        tree structure recursively.
+        root: the root directory from which the tree creation is started with.
+        """
+        self._root.create(root)
+
+    def watch(self):
+        """
+        Start watching.
+        """
+        self._notifier.loop()
+
+
+class WatchTreeFileHandler(object):
+    """
+    Abstract base class for handling file change notifications.
+    Inherit this class to create your own handler.
+    """
+    def process(self, path):
+        """
+        This method is called every time a file was finished writing.
+        path: the path to the file.
+        """
+        pass
