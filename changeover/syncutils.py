@@ -102,7 +102,7 @@ def run_rsync(source, target, client_ssh, config, options=""):
                 'chmod': config['chmod']
                }
 
-    # pre-chmod: change the owner of the target dir + files to the login user
+    # pre-chown: change the owner of the target dir + files to the login user
     cmd_dict['user'] = config['user']
     cmd_dict['group'] = config['user']
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
@@ -127,9 +127,10 @@ def run_rsync(source, target, client_ssh, config, options=""):
                        'bytes_received': int((out_list[11].split(':'))[1].strip())
                       }
     except:
+        logger.error("Couldn't read the rsync stats: %s"%stdout)
         result_dict = {}
 
-    # post-chmod: change the owner of the target dir + files to the target user
+    # post-chown: change the owner of the target dir + files to the target user
     cmd_dict['user'] = config['owner']
     cmd_dict['group'] = config['group']
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))

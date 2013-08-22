@@ -1,7 +1,6 @@
 import logging
 import argparse
-import pyinotify
-from changeover import settings, eventhandler
+from changeover import settings, eventhandler, watchtree
 from common import saxslog
 
 def main():
@@ -35,16 +34,11 @@ def main():
     #--------------------------------
     #      Notification system
     #--------------------------------
-    # create the watch manager, event handler and notifier
-    watch_manager = pyinotify.WatchManager()
-    handler = eventhandler.EventHandler(config)
-    notifier = pyinotify.Notifier(watch_manager, handler)
-
-    # add the watch directory to the watch manager
-    watch_manager.add_watch(config['watch'], pyinotify.IN_CLOSE_WRITE,
-                            rec=True, auto_add=True)
-    logger.info("Created the notification system and added the watchfolder")
+    # create the watch tree
+    wt = watchtree.WatchTree(eventhandler.EventHandler(config))
+    wt.create(config['watch'])
+    logger.info("Created the watch tree notification system")
 
     # start watching
     logger.info("Waiting for notifications...")
-    notifier.loop()
+    wt.watch()

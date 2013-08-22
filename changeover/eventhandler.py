@@ -1,13 +1,11 @@
 import paramiko
-import pyinotify
-from changeover import syncutils
+from changeover import syncutils, watchtree
 from common import saxslog
 
-class EventHandler(pyinotify.ProcessEvent):
+class EventHandler(watchtree.WatchTreeFileHandler):
     """
-    The handler class for processing pyinotify events.
+    The handler class for processing the file notification events.
     """
-
     def __init__(self, config):
         """
         The constructor of the event handler.
@@ -19,22 +17,21 @@ class EventHandler(pyinotify.ProcessEvent):
         self._logger, self._raven_client = saxslog.setup(config, __name__)
 
 
-    def process_IN_CLOSE_WRITE(self, event):
+    def process(self, path):
         """
-        Process events that were triggered by closing a file after having
-        written into it.
-        event: The event that triggered this method
+        Run the rsync process after being notified of a change in the filesystem.
+        path: The source path for the rsync process
         """
         # check the length of the triggered path
-        trg_path_list = event.path.split('/')
+        path_list = path.split('/')
         src_path_list = self._config['src_folder_list']
-        if len(trg_path_list) < len(self._config['src_folder_list']):
+        if len(path_list) < len(self._config['src_folder_list']):
             self._logger.error("The triggered path is shorter than the source path!")
             return
 
         # build the source and target paths for rsync
         try:
-            source, target = syncutils.build_sync_paths(trg_path_list,
+            source, target = syncutils.build_sync_paths(path_list,
                                                         self._config)
             self._logger.info("%s => %s"%(source, target))
         except Exception, e:
@@ -71,9 +68,9 @@ class EventHandler(pyinotify.ProcessEvent):
             options += "c" if self._config['checksum'] else ""
             
             try:    
-                # run the rsync process
-                syncutils.run_rsync(source, target, client, self._config,
-                                    options)
+                # run the rsync process and get the stats dictionary
+                rsync_stats = syncutils.run_rsync(source, target, client,
+                                                  self._config, options)
 
                 # close ssh connection
                 client.close()
