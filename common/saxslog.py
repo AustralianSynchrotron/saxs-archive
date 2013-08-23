@@ -10,7 +10,7 @@ except ImportError:
     raven_available = False
 
 
-def setup(config, logger_name):
+def setup(logger_name, debug=False, sentry_URL=""):
     """
     Setup the logging for the SAXS-WAXS archive tools.
     config: The configuration dictionary
@@ -19,12 +19,12 @@ def setup(config, logger_name):
     If the raven module is not available, the raven client is None
     """
     logging.basicConfig()
-    if config['debug']:
+    if debug:
         logging.getLogger().setLevel(logging.INFO)
     else:
         logging.getLogger().setLevel(logging.ERROR)
 
-    if raven_available and config['sentry']:
-        return logging.getLogger(logger_name), Client(config['sentry'])
+    if raven_available and sentry_URL:
+        return logging.getLogger(logger_name), Client(sentry_URL)
     else:
         return logging.getLogger(logger_name), None
