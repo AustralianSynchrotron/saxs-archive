@@ -1,6 +1,7 @@
 import logging
 import argparse
-from changeover import settings, eventhandler, watchtree
+from changeover.common import settings, watchtree
+from changeover.rsync import eventhandler
 from common import saxslog
 
 def main():
@@ -18,16 +19,18 @@ def main():
     args = vars(parser.parse_args())
 
     # read the configuration file
-    config = settings.read(args['<config_file>'])
+    settings.read(args['<config_file>'])
 
     # setup the global logging
-    logger, raven_client = saxslog.setup(config, "changeover-rsync")
+    logger, raven_client = saxslog.setup("changeover-rsync",
+                                         settings.Settings()['debug'],
+                                         settings.Settings()['sentry'])
     if raven_client != None:
         saxslog.setup_logging(saxslog.SentryHandler(raven_client))
         logger.info("Raven is available. Logging will be sent to Sentry")
 
     # settings and validation checks
-    if not settings.validate(config):
+    if not settings.validate():
         exit()
 
 
@@ -35,8 +38,8 @@ def main():
     #      Notification system
     #--------------------------------
     # create the watch tree
-    wt = watchtree.WatchTree(eventhandler.EventHandler(config))
-    wt.create(config['watch'])
+    wt = watchtree.WatchTree(eventhandler.EventHandler())
+    wt.create(settings.Settings()['watch'])
     logger.info("Created the watch tree notification system")
 
     # start watching

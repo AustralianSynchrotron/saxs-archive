@@ -21,7 +21,6 @@ class Node(object):
         self._watch_manager = watch_manager
         self._file_handler = file_handler
 
-
     def create(self, path):
         """
         Create a watch for this node and the child nodes for the sub-directories
@@ -44,7 +43,6 @@ class Node(object):
                 self._nodes.append(new_node)
                 new_node.create(abs_dir)
 
-
     def delete(self):
         """
         Deletes the watch of this node and all children nodes
@@ -53,7 +51,6 @@ class Node(object):
         for node in self._nodes:
             node.delete()
         del self._nodes[:]
-
 
     def handle_event(self, event):
         """

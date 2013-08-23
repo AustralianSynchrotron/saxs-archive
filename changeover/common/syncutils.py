@@ -2,22 +2,23 @@ import os
 import logging
 from string import Template
 from subprocess import Popen, PIPE
+from changeover.common.settings import Settings
 
 logger = logging.getLogger(__name__)
 
-def build_sync_paths(input_path_list, config):
+def build_sync_paths(input_path_list):
     """
     Build the source and target paths for rsync by replacing the
     template parameters with the correct values
     input_path_list: the triggered directory split into a list of src_folder_list
-    config: the configuration dictionary
     """
+    conf = Settings()
     # match the path elements between the input and the config source path
     # and extract the template values from the triggered path
     tmp_dict = {}
-    for i in range(len(config['src_folder_list'])):
+    for i in range(len(conf['src_folder_list'])):
         input_element = input_path_list[i]
-        path_element = config['src_folder_list'][i]
+        path_element = conf['src_folder_list'][i]
         if path_element.startswith('${') and path_element.endswith('}'):
             tmp_dict[path_element[2:len(path_element)-1]] = input_element
         else:
@@ -26,8 +27,8 @@ def build_sync_paths(input_path_list, config):
                                  found in input path!"%input_element)
 
     # substitute the template parameters in the source and target path
-    source = Template(config['src_folder']).substitute(tmp_dict)
-    target = Template(config['tar_folder']).substitute(tmp_dict)
+    source = Template(conf['src_folder']).substitute(tmp_dict)
+    target = Template(conf['tar_folder']).substitute(tmp_dict)
 
     # make sure the paths end with a trailing slash
     if not source.endswith("/"):
@@ -39,24 +40,23 @@ def build_sync_paths(input_path_list, config):
     return source, target
 
 
-def mkdir_remote(remote_dir, client_ssh, config):
+def mkdir_remote(remote_dir, client_ssh):
     """
     Make the remote directory by creating each subdirectory separately.
     Change the permission of each newly created sub-directory to the target
     owner/group permission. 
     remote_dir: the remote directory that should be created
     client_ssh: reference to the ssh client object
-    config: reference to the config object
     """
     remote_list = remote_dir.split("/")
     cmd  = "[ -d ${dir} ] || (${sudo} mkdir ${dir}"
     cmd += " && ${sudo} chown -R ${user}:${group} ${dir}"
     cmd += " && ${sudo} chmod -R ${chmod} ${dir})"
-    cmd_dict = {'sudo' : "sudo" if config['sudo'] else "",
+    cmd_dict = {'sudo' : "sudo" if Settings()['sudo'] else "",
                 'dir'  : "",
-                'user' : config['owner'],
-                'group': config['group'],
-                'chmod': config['chmod']
+                'user' : Settings()['owner'],
+                'group': Settings()['group'],
+                'chmod': Settings()['chmod']
                }
 
     # loop over all subdirectories. If the subdirectory doesn't exist, create it
@@ -77,7 +77,7 @@ def mkdir_remote(remote_dir, client_ssh, config):
                              %client_error.rstrip())
 
 
-def run_rsync(source, target, client_ssh, config, options=""):
+def run_rsync(source, target, client_ssh, options=""):
     """
     Run rsync in order to copy the files from the detector server to the
     archive server. The process is done in three steps:
@@ -89,22 +89,22 @@ def run_rsync(source, target, client_ssh, config, options=""):
     source: the source path on the detector server
     target: the target path on the archive server
     client_ssh: reference to the ssh client object
-    config: reference to the config object
     options: additional options that should be given to rsync
     Returns a dictionary with information collected from rsync
     """
+    conf = Settings()
     cmd =  "${sudo} chown -R ${user}:${group} ${dir}"
     cmd += " && ${sudo} chmod -R ${chmod} ${dir}"
-    cmd_dict = {'sudo' : "sudo" if config['sudo'] else "",
+    cmd_dict = {'sudo' : "sudo" if conf['sudo'] else "",
                 'dir'  : target,
                 'user' : "",
                 'group': "",
-                'chmod': config['chmod']
+                'chmod': conf['chmod']
                }
 
     # pre-chown: change the owner of the target dir + files to the login user
-    cmd_dict['user'] = config['user']
-    cmd_dict['group'] = config['user']
+    cmd_dict['user'] = conf['user']
+    cmd_dict['group'] = conf['user']
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
     client_error = stderr.read()
     if client_error:
@@ -113,7 +113,7 @@ def run_rsync(source, target, client_ssh, config, options=""):
 
     # rsync: call rsync and collect the stats information
     proc = Popen(["rsync", options, "--stats", "-e ssh",
-                  source, "%s@%s:%s"%(config['user'], config['host'], target)],
+                  source, "%s@%s:%s"%(conf['user'], conf['host'], target)],
                   stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate()
     if stderr:
@@ -131,8 +131,8 @@ def run_rsync(source, target, client_ssh, config, options=""):
         result_dict = {}
 
     # post-chown: change the owner of the target dir + files to the target user
-    cmd_dict['user'] = config['owner']
-    cmd_dict['group'] = config['group']
+    cmd_dict['user'] = conf['owner']
+    cmd_dict['group'] = conf['group']
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
     client_error = stderr.read()
     if client_error:
