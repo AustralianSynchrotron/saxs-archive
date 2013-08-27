@@ -1,0 +1,18 @@
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.bar {
+  fill: #8da0ae;
+}
+
+.bar:hover {
+  fill: #626f78;
+}
+
+.x.axis path {
+  display: none;
+}

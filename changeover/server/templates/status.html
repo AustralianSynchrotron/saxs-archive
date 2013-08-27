@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h1>Supervisor process</h1>
+{% if rsync_running %}
+Running PID: {{ rsync_pid}} Uptime: {{ rsync_uptime }}
+{% else %}
+Not running
+{% endif %}
+
+<br>
+
+<h1>SSH connection</h1>
+{% if ssh_connected %}
+Successfully connected to {{ ssh_target }}
+{% else %}
+Couldn't connect to {{ ssh_target }}: {{ ssh_error_msg }}
+{% endif %}
+
+<h1>Statistics for today</h1>
+
+<center><div id="plot_data_today"></div></center>
+<center><div id="plot_number_files_today"></div></center>
+
+<script src="{{ url_for('static', filename='plots.js') }}" type="text/javascript" charset="utf-8"></script>
+
+{% endblock %}

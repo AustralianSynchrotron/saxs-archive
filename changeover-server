@@ -32,6 +32,6 @@ if not settings.validate():
     exit()
 
 conf = settings.Settings()
-app.run(host=conf['server_host'],
-        port=conf['server_port'],
-        debug=conf['debug'])
+app.run(host=conf['server']['host'],
+        port=int(conf['server']['port']),
+        debug=conf['logging']['debug'])
