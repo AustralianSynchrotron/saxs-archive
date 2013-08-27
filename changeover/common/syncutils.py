@@ -111,7 +111,7 @@ def run_rsync(source, target, client_ssh, options=""):
         raise Exception("Couldn't change the ownership of the target directory: '%s'"\
                         %client_error.rstrip())
 
-    # rsync: call rsync and collect the stats information
+    # rsync: call rsync
     proc = Popen(["rsync", options, "--stats", "-e ssh",
                   source, "%s@%s:%s"%(conf['user'], conf['host'], target)],
                   stdout=PIPE, stderr=PIPE)
@@ -119,16 +119,24 @@ def run_rsync(source, target, client_ssh, options=""):
     if stderr:
         raise Exception("Error while calling rsync: '%s'"%stderr)
 
+    # parse output and collect the stats information
     out_list = stdout.split("\n")
+    result_dict = {}
     try:
-        result_dict = {'files_total': int((out_list[1].split(':'))[1].strip())-1,
-                       'files_transfered': int((out_list[2].split(':'))[1].strip()),
-                       'bytes_sent': int((out_list[10].split(':'))[1].strip()),
-                       'bytes_received': int((out_list[11].split(':'))[1].strip())
-                      }
+        for line in out_list:
+            if not line:
+                continue
+            tokens = line.split()
+            if line.startswith("Number of files:"):
+                result_dict['files_total'] = int(tokens[3].strip())-1
+            elif line.startswith("Number of files transferred:"):
+                result_dict['files_transferred'] = int(tokens[4].strip())
+            elif line.startswith("Total file size:"):
+                result_dict['size_total'] = int(tokens[3].strip())
+            elif line.startswith("Total transferred file size:"):
+                result_dict['size_transferred'] = int(tokens[4].strip())
     except:
         logger.error("Couldn't read the rsync stats: %s"%stdout)
-        result_dict = {}
 
     # post-chown: change the owner of the target dir + files to the target user
     cmd_dict['user'] = conf['owner']
