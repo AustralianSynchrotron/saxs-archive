@@ -4,8 +4,28 @@ import ConfigParser
 from string import Template
 from common import saxslog
 
+class ChangeoverParser(ConfigParser.ConfigParser):
+    """
+    Extends the ConfigParser by a method that returns a dictionary of the
+    settings file and converts "true" and "false" strings to Boolean values.
+    """
+    def to_dict(self):
+        """
+        Returns a dictionary of the settings file
+        """
+        conf_dict = dict(self._sections)
+        for key in conf_dict:
+            conf_dict[key] = dict(self._defaults, **conf_dict[key])
+            for k, v in conf_dict[key].iteritems():
+                if v.lower() in ["true", "false"]:
+                    conf_dict[key][k] = bool(v)
+            conf_dict[key].pop('__name__', None)
+        return conf_dict
+
+
 class __SettingsSingleton(object):
     d = {}
+
 
 def Settings():
     return __SettingsSingleton().d
@@ -13,47 +33,17 @@ def Settings():
 
 def read(conf_path):
     """
-    Read the settings from the specified configuration file.
+    Read the settings from the specified configuration file and builds a
+    dictionary.
     conf_path: The path to the settings file
-    Returns a dictionary with the settings.
     """
-    #default_values = {}
-    conf = ConfigParser.ConfigParser()
-    conf.read(conf_path)
-    config = {}
-
-    # [logging]
-    config['debug'] = conf.getboolean('logging', 'debug')
-    config['sentry'] = conf.get('logging', 'sentry')
-
-    # [rsync]
-    config['compress'] = conf.getboolean('rsync', 'compress')
-    config['checksum'] = conf.getboolean('rsync', 'checksum')
-
-    # [source]
-    config['watch'] = conf.get('source', 'watch')
-    config['src_folder'] = conf.get('source', 'folder')
-
-    # [target]
-    config['host'] = conf.get('target', 'host')
-    config['user'] = conf.get('target', 'user')
-    config['sudo'] = conf.getboolean('target', 'sudo')
-    config['tar_folder'] = conf.get('target', 'folder')
-    config['chmod'] = conf.get('target', 'permission')
-    config['owner'] = conf.get('target', 'owner')
-    config['group'] = conf.get('target', 'group')
-
-    # [server]
-    #config['server_name'] = conf.get('server', 'name', 'Detector')
-    #config['server_host'] = conf.get('server', 'host')
-    #config['server_port'] = conf.getint('server', 'port')
+    conf_parser = ChangeoverParser()
+    conf_parser.read(conf_path)
+    Settings().clear()
+    Settings().update(conf_parser.to_dict())
 
     # build the source folder list
-    config['src_folder_list'] = config['src_folder'].split('/')
-
-    # update singleton
-    Settings().clear()
-    Settings().update(config)
+    Settings()['source']['folder_list'] = Settings()['source']['folder'].split('/')
 
 
 def validate():
@@ -62,11 +52,13 @@ def validate():
     Returns True if the settings are valid, otherwise False is returned.
     """
     conf = Settings()
-    logger, raven_client = saxslog.setup(__name__, conf['debug'], conf['sentry'])
+    logger, raven_client = saxslog.setup(__name__,
+                                        conf['logging']['debug'],
+                                        conf['logging']['sentry'])
 
     # check if the watchfolder exists
-    if not os.path.isdir(conf['watch']):
-        logger.error("The watch folder '%s' doesn't exist!"%conf['watch'])
+    if not os.path.isdir(conf['source']['watch']):
+        logger.error("The watch folder '%s' doesn't exist!"%conf['source']['watch'])
         return False
     logger.info("Watchfolder exists and is valid")
 
@@ -74,10 +66,10 @@ def validate():
     # source folder string
     try:
         check_dict = {}
-        for token in conf['src_folder_list']:
+        for token in conf['source']['folder_list']:
             if token.startswith('${') and token.endswith('}'):
                 check_dict[token[2:len(token)-1]] = ""
-        Template(conf['tar_folder']).substitute(check_dict)
+        Template(conf['target']['folder']).substitute(check_dict)
         logger.info("Source and target folder keys match")
     except KeyError, e:
         if raven_client != None:
@@ -90,7 +82,7 @@ def validate():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(conf['host'], username=conf['user'])
+        client.connect(conf['target']['host'], username=conf['target']['user'])
         client.close()
         logger.info("Connection to the target host was successfully established")
     except paramiko.SSHException, e:

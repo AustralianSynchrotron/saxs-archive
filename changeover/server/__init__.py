@@ -15,8 +15,8 @@ settings.read(args['<config_file>'])
 
 # setup the global logging
 logger, raven_client = saxslog.setup("changeover-server",
-                                     settings.Settings()['debug'],
-                                     settings.Settings()['sentry'])
+                                     settings.Settings()['logging']['debug'],
+                                     settings.Settings()['logging']['sentry'])
 if raven_client != None:
     saxslog.setup_logging(saxslog.SentryHandler(raven_client))
     logger.info("Raven is available. Logging will be sent to Sentry")

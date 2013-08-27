@@ -14,8 +14,8 @@ class EventHandler(watchtree.WatchTreeFileHandler):
                       the Sentry server
         """
         self._logger, self._raven_client = saxslog.setup(__name__,
-                                                         Settings()['debug'],
-                                                         Settings()['sentry'])
+                                                Settings()['logging']['debug'],
+                                                Settings()['logging']['sentry'])
 
 
     def process(self, path):
@@ -26,8 +26,8 @@ class EventHandler(watchtree.WatchTreeFileHandler):
         conf = Settings()
         # check the length of the triggered path
         path_list = path.split('/')
-        src_path_list = conf['src_folder_list']
-        if len(path_list) < len(conf['src_folder_list']):
+        src_path_list = conf['source']['folder_list']
+        if len(path_list) < len(conf['source']['folder_list']):
             self._logger.error("The triggered path is shorter than the source path!")
             return
 
@@ -46,7 +46,8 @@ class EventHandler(watchtree.WatchTreeFileHandler):
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect(conf['host'], username=conf['user'])
+            client.connect(conf['target']['host'],
+                           username=conf['target']['user'])
 
             # if the remote directory doesn't exist, create it
             try:
@@ -65,8 +66,8 @@ class EventHandler(watchtree.WatchTreeFileHandler):
 
             # set the rsync options
             options = "-a"
-            options += "z" if conf['compress'] else ""
-            options += "c" if conf['checksum'] else ""
+            options += "z" if conf['rsync']['compress'] else ""
+            options += "c" if conf['rsync']['checksum'] else ""
             
             try:    
                 # run the rsync process and get the stats dictionary

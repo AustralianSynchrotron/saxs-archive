@@ -16,9 +16,9 @@ def build_sync_paths(input_path_list):
     # match the path elements between the input and the config source path
     # and extract the template values from the triggered path
     tmp_dict = {}
-    for i in range(len(conf['src_folder_list'])):
+    for i in range(len(conf['source']['folder_list'])):
         input_element = input_path_list[i]
-        path_element = conf['src_folder_list'][i]
+        path_element = conf['source']['folder_list'][i]
         if path_element.startswith('${') and path_element.endswith('}'):
             tmp_dict[path_element[2:len(path_element)-1]] = input_element
         else:
@@ -27,8 +27,8 @@ def build_sync_paths(input_path_list):
                                  found in input path!"%input_element)
 
     # substitute the template parameters in the source and target path
-    source = Template(conf['src_folder']).substitute(tmp_dict)
-    target = Template(conf['tar_folder']).substitute(tmp_dict)
+    source = Template(conf['source']['folder']).substitute(tmp_dict)
+    target = Template(conf['target']['folder']).substitute(tmp_dict)
 
     # make sure the paths end with a trailing slash
     if not source.endswith("/"):
@@ -52,11 +52,11 @@ def mkdir_remote(remote_dir, client_ssh):
     cmd  = "[ -d ${dir} ] || (${sudo} mkdir ${dir}"
     cmd += " && ${sudo} chown -R ${user}:${group} ${dir}"
     cmd += " && ${sudo} chmod -R ${chmod} ${dir})"
-    cmd_dict = {'sudo' : "sudo" if Settings()['sudo'] else "",
+    cmd_dict = {'sudo' : "sudo" if Settings()['target']['sudo'] else "",
                 'dir'  : "",
-                'user' : Settings()['owner'],
-                'group': Settings()['group'],
-                'chmod': Settings()['chmod']
+                'user' : Settings()['target']['owner'],
+                'group': Settings()['target']['group'],
+                'chmod': Settings()['target']['permission']
                }
 
     # loop over all subdirectories. If the subdirectory doesn't exist, create it
@@ -92,14 +92,14 @@ def run_rsync(source, target, client_ssh, options=""):
     options: additional options that should be given to rsync
     Returns a dictionary with information collected from rsync
     """
-    conf = Settings()
+    conf = Settings()['target']
     cmd =  "${sudo} chown -R ${user}:${group} ${dir}"
     cmd += " && ${sudo} chmod -R ${chmod} ${dir}"
     cmd_dict = {'sudo' : "sudo" if conf['sudo'] else "",
                 'dir'  : target,
                 'user' : "",
                 'group': "",
-                'chmod': conf['chmod']
+                'chmod': conf['permission']
                }
 
     # pre-chown: change the owner of the target dir + files to the login user
