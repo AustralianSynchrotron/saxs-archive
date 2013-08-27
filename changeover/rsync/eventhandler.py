@@ -1,3 +1,4 @@
+import json
 import paramiko
 from changeover.common import syncutils, watchtree
 from changeover.common.settings import Settings
@@ -68,10 +69,12 @@ class EventHandler(watchtree.WatchTreeFileHandler):
             options = "-a"
             options += "z" if conf['rsync']['compress'] else ""
             options += "c" if conf['rsync']['checksum'] else ""
-            
+
             try:    
                 # run the rsync process and get the stats dictionary
-                rsync_stats = syncutils.run_rsync(source, target, client, options)
+                rsync_stats = syncutils.run_rsync(source, target,
+                                                  client, options,
+                                                  json.loads(conf['rsync']['exclude']))
 
                 # close ssh connection
                 client.close()

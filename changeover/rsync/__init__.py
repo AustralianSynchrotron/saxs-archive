@@ -23,6 +23,7 @@ if raven_client != None:
     logger.info("Raven is available. Logging will be sent to Sentry")
 
 # create the watch tree
-wt = watchtree.WatchTree(eventhandler.EventHandler())
+wt = watchtree.WatchTree(eventhandler.EventHandler(),
+                         settings.Settings()['source']['exclude'])
 wt.create(settings.Settings()['source']['watch'])
 logger.info("Created the watch tree notification system")

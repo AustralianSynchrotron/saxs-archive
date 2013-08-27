@@ -77,7 +77,7 @@ def mkdir_remote(remote_dir, client_ssh):
                              %client_error.rstrip())
 
 
-def run_rsync(source, target, client_ssh, options=""):
+def run_rsync(source, target, client_ssh, options="", exclude_list=[]):
     """
     Run rsync in order to copy the files from the detector server to the
     archive server. The process is done in three steps:
@@ -112,9 +112,12 @@ def run_rsync(source, target, client_ssh, options=""):
                         %client_error.rstrip())
 
     # rsync: call rsync
-    proc = Popen(["rsync", options, "--stats", "-e ssh",
-                  source, "%s@%s:%s"%(conf['user'], conf['host'], target)],
-                  stdout=PIPE, stderr=PIPE)
+    cmd_rsync = ["rsync", options]
+    for exclude in exclude_list:
+        cmd_rsync.append("--exclude=%s"%exclude)
+    cmd_rsync.extend(["--stats", "-e", "ssh",
+                      source, "%s@%s:%s"%(conf['user'], conf['host'], target)])
+    proc = Popen(cmd_rsync, stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate()
     if stderr:
         raise Exception("Error while calling rsync: '%s'"%stderr)

@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import pyinotify
 
@@ -9,17 +10,19 @@ class Node(object):
     A single node in the directory tree.
     """
 
-    def __init__(self, watch_manager, file_handler):
+    def __init__(self, watch_manager, file_handler, regex=None):
         """
         Constructor of the tree node.
         watch_manager: reference to the watch manager that maintains the watches.
         file_handler: reference to a file handler object
+        regex: a regex for excluding files from the watch
         """
         self._path = ""
         self._wd = -1
         self._nodes = []
         self._watch_manager = watch_manager
         self._file_handler = file_handler
+        self._regex = regex
 
     def create(self, path):
         """
@@ -39,7 +42,9 @@ class Node(object):
         for curr_dir in os.listdir(path):
             abs_dir = os.path.join(path, curr_dir)
             if os.path.isdir(abs_dir):
-                new_node = Node(self._watch_manager, self._file_handler)
+                new_node = Node(self._watch_manager,
+                                self._file_handler,
+                                self._regex)
                 self._nodes.append(new_node)
                 new_node.create(abs_dir)
 
@@ -64,6 +69,9 @@ class Node(object):
             logger.info("Recreated the sub-tree '%s'"%event.path)
         else:
             if event.mask == pyinotify.IN_CLOSE_WRITE:
+                if self._regex != None and \
+                   self._regex.search(event.name) != None:
+                   return
                 self._file_handler.process(event.path)
 
 
@@ -74,14 +82,16 @@ class WatchTree(object):
     renamed or deleted, the part of the tree that is affected by this change
     is automatically rebuild. The associated pyinotify watches are also updated.
     """
-    def __init__(self, file_handler):
+    def __init__(self, file_handler, exclude=""):
         """
         Constructor of the watch tree class
         file_handler: reference to a file handler object
+        exclude: a regex for excluding files from the watch
         """
         self._watch_manager = pyinotify.WatchManager()
         self._notifier = pyinotify.Notifier(self._watch_manager)
-        self._root = Node(self._watch_manager, file_handler)
+        self._root = Node(self._watch_manager, file_handler,
+                          re.compile(exclude) if exclude else None)
 
     def create(self, root):
         """
