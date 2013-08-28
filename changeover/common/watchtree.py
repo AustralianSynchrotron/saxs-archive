@@ -1,7 +1,9 @@
 import os
 import re
+import time
 import logging
 import pyinotify
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -10,18 +12,21 @@ class Node(object):
     A single node in the directory tree.
     """
 
-    def __init__(self, watch_manager, file_handler, regex=None):
+    def __init__(self, watch_manager, file_handler, regex=None, delay=0):
         """
         Constructor of the tree node.
         watch_manager: reference to the watch manager that maintains the watches.
         file_handler: reference to a file handler object
         regex: a regex for excluding files from the watch
+        delay: time in seconds to aggregate together several events
         """
         self._wd = -1
         self._nodes = []
         self._watch_manager = watch_manager
         self._file_handler = file_handler
         self._regex = regex
+        self._delay = delay
+        self._thread_active = False
 
     def create(self, path):
         """
@@ -46,7 +51,8 @@ class Node(object):
             if os.path.isdir(abs_dir):
                 new_node = Node(self._watch_manager,
                                 self._file_handler,
-                                self._regex)
+                                self._regex,
+                                self._delay)
                 self._nodes.append(new_node)
                 new_node.create(abs_dir)
 
@@ -66,6 +72,9 @@ class Node(object):
     def handle_event(self, event):
         """
         The callback method for notification events
+        If the delay time is larger than 0, a thread is started in order to wait
+        for for the delay time to pass and then calls the rsync process. In the
+        meantime calls to this method are simply not handled.
         event: the pyinotify event object
         """
         # if it is a directory remove all sub-nodes then rebuild the sub-tree.
@@ -75,10 +84,26 @@ class Node(object):
             logger.info("Recreated the sub-tree '%s'"%event.path)
         else:
             if event.mask == pyinotify.IN_CLOSE_WRITE:
-                if self._regex != None and \
-                   self._regex.search(event.name) != None:
-                   return
-                self._file_handler.process(event.path)
+                if not self._thread_active:
+                    if self._regex != None and \
+                        self._regex.search(event.name) != None:
+                        return
+
+                    if self._delay > 0:
+                        threading.Thread(target=self._thread_handle_event,
+                                         args=(self._delay, event.path)).start()
+                        logger.info("Started event aggregation thread")
+                        self._thread_active = True
+                    else:
+                        self._file_handler.process(event.path)
+
+    def _thread_handle_event(self, delay, path):
+        """
+        Thread method that waits the delay time and then calls the rsync process
+        """
+        time.sleep(delay)
+        self._file_handler.process(path)
+        self._thread_active = False
 
 
 class WatchTree(object):
@@ -88,16 +113,18 @@ class WatchTree(object):
     renamed or deleted, the part of the tree that is affected by this change
     is automatically rebuild. The associated pyinotify watches are also updated.
     """
-    def __init__(self, file_handler, exclude=""):
+    def __init__(self, file_handler, exclude="", delay=0):
         """
         Constructor of the watch tree class
         file_handler: reference to a file handler object
         exclude: a regex for excluding files from the watch
+        delay: time in seconds to aggregate together several events
         """
         self._watch_manager = pyinotify.WatchManager()
         self._notifier = pyinotify.Notifier(self._watch_manager)
         self._root = Node(self._watch_manager, file_handler,
-                          re.compile(exclude) if exclude else None)
+                          re.compile(exclude) if exclude else None,
+                          delay)
 
     def create(self, root):
         """

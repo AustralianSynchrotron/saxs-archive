@@ -24,6 +24,7 @@ if raven_client != None:
 
 # create the watch tree
 wt = watchtree.WatchTree(eventhandler.EventHandler(),
-                         settings.Settings()['source']['exclude'])
+                         settings.Settings()['source']['exclude'],
+                         int(settings.Settings()['rsync']['delay']))
 wt.create(settings.Settings()['source']['watch'])
 logger.info("Created the watch tree notification system")

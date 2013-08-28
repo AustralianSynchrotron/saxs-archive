@@ -38,6 +38,7 @@ class EventHandler(watchtree.WatchTreeFileHandler):
         path: The source path for the rsync process
         """
         conf = Settings()
+        
         # check the length of the triggered path
         path_list = path.split('/')
         src_path_list = conf['source']['folder_list']
