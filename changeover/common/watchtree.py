@@ -17,7 +17,6 @@ class Node(object):
         file_handler: reference to a file handler object
         regex: a regex for excluding files from the watch
         """
-        self._path = ""
         self._wd = -1
         self._nodes = []
         self._watch_manager = watch_manager
@@ -33,10 +32,13 @@ class Node(object):
         # add a watch on this node
         mask = pyinotify.IN_CLOSE_WRITE | pyinotify.IN_CREATE | \
                pyinotify.IN_DELETE | pyinotify.IN_MOVED_TO
-        wd = self._watch_manager.add_watch(path, mask,
-                                           proc_fun=self.handle_event).items()[0]
-        self._path = wd[0]
-        self._wd = wd[1]
+        try:
+            wd = self._watch_manager.add_watch(path, mask,
+                                               proc_fun=self.handle_event,
+                                               quiet=False).items()[0]
+            self._wd = wd[1]
+        except pyinotify.WatchManagerError, e:
+            logger.error("Couldn't add watch: %s, %s"%(e, e.wmd))
 
         # add the nodes for the sub-directories recursively
         for curr_dir in os.listdir(path):
@@ -52,7 +54,11 @@ class Node(object):
         """
         Deletes the watch of this node and all children nodes
         """
-        self._watch_manager.rm_watch(self._wd)
+        if self._wd > -1:
+            try:
+                self._watch_manager.rm_watch(self._wd, quiet=False)
+            except pyinotify.WatchManagerError, e:
+                logger.error("Couldn't remove watch: %s, %s"%(e, e.wmd))
         for node in self._nodes:
             node.delete()
         del self._nodes[:]
