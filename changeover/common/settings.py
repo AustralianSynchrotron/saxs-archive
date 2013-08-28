@@ -43,7 +43,13 @@ def read(conf_path):
     Settings().update(conf_parser.to_dict())
 
     # build the source folder list
-    Settings()['source']['folder_list'] = Settings()['source']['folder'].split('/')
+    conf = Settings()
+    conf['source']['folder_list'] = conf['source']['folder'].split('/')
+
+    # set the statistics file configuration
+    conf['statistics']['has_year'] = (conf['statistics']['file'].find("${year}") > -1)
+    conf['statistics']['has_month'] = (conf['statistics']['file'].find("${month}") > -1)
+    conf['statistics']['has_day'] = (conf['statistics']['file'].find("${day}") > -1)
 
 
 def validate():
@@ -91,6 +97,18 @@ def validate():
         else:
             logger.error("Can't connect to target host: %s"%e)
         client.close()
+        return False
+
+    # check if the statistics filename has either no or a valid list of
+    # template parameters.
+    has_year = conf['statistics']['has_year']
+    has_month = conf['statistics']['has_month']
+    has_day = conf['statistics']['has_day']
+    if (has_day and not (has_month and has_year)) or \
+       (has_month and not has_year):
+        logger.error("The statistics filename has to contain either no "+
+                     "template parameters or a non-ambiguous combination "+
+                     "of '${day}' '${year}' and '${month}'")
         return False
 
     return True

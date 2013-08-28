@@ -124,7 +124,8 @@ def run_rsync(source, target, client_ssh, options="", exclude_list=[]):
 
     # parse output and collect the stats information
     out_list = stdout.split("\n")
-    result_dict = {}
+    result_dict = {'source': source,
+                   'target': target}
     try:
         for line in out_list:
             if not line:
