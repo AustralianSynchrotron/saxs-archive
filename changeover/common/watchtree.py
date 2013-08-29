@@ -1,11 +1,52 @@
 import os
 import re
-import time
 import logging
 import pyinotify
 import threading
 
 logger = logging.getLogger(__name__)
+
+
+class AggregationThread(threading.Thread):
+    """
+    Thread class that waits the delay time and then calls the file handler process
+    """
+    def __init__(self, delay, file_handler, path):
+        """
+        Constructor of the aggregation thread class
+        delay: time in seconds the thread should wait
+        file_handler: reference to a file handler object
+        path: The path of the node the thread was started from
+        """
+        super(AggregationThread, self).__init__()
+        self._delay = delay
+        self._file_handler = file_handler
+        self._stop = threading.Event()
+        self._path = path
+
+    def run(self):
+        """
+        The main run method of the thread. Waits for the delay time and, if not
+        stopped, calls the file handler method.
+        """
+        self._stop.wait(self._delay)
+        if not self.stopped():
+            self._file_handler.process(self._path)
+        else:
+            logger.info("Aggregation thread was stopped")
+
+    def stop(self):
+        """
+        Stops the thread.
+        """
+        self._stop.set()
+
+    def stopped(self):
+        """
+        Returns the stop flag of the thread
+        """
+        return self._stop.is_set()
+
 
 class Node(object):
     """
@@ -26,7 +67,7 @@ class Node(object):
         self._file_handler = file_handler
         self._regex = regex
         self._delay = delay
-        self._thread_active = False
+        self._agg_thread = AggregationThread(delay, file_handler, "")
 
     def create(self, path):
         """
@@ -64,6 +105,11 @@ class Node(object):
         """
         if self._wd > -1:
             try:
+                # stop a running aggregation thread
+                if self._agg_thread.is_alive():
+                    self._agg_thread.stop()
+
+                # remove watch
                 self._watch_manager.rm_watch(self._wd, quiet=False)
                 logger.info("Removed watch '%i' successfully"%self._wd)
                 self._wd = -1
@@ -99,26 +145,19 @@ class Node(object):
                 new_node.create(event.pathname)
         else:
             if event.mask == pyinotify.IN_CLOSE_WRITE:
-                if not self._thread_active:
+                if (os.path.exists(event.path)) and (not self._agg_thread.is_alive()):
                     if self._regex != None and \
                         self._regex.search(event.name) != None:
                         return
 
                     if self._delay > 0:
-                        threading.Thread(target=self._thread_handle_event,
-                                         args=(self._delay, event.path)).start()
+                        self._agg_thread = AggregationThread(self._delay,
+                                                             self._file_handler,
+                                                             event.path)
+                        self._agg_thread.start()
                         logger.info("Started event aggregation thread")
-                        self._thread_active = True
                     else:
                         self._file_handler.process(event.path)
-
-    def _thread_handle_event(self, delay, path):
-        """
-        Thread method that waits the delay time and then calls the rsync process
-        """
-        time.sleep(delay)
-        self._file_handler.process(path)
-        self._thread_active = False
 
 
 class WatchTree(object):
