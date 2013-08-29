@@ -21,7 +21,7 @@ class Node(object):
         delay: time in seconds to aggregate together several events
         """
         self._wd = -1
-        self._nodes = []
+        self._nodes = {}
         self._watch_manager = watch_manager
         self._file_handler = file_handler
         self._regex = regex
@@ -36,12 +36,14 @@ class Node(object):
         """
         # add a watch on this node
         mask = pyinotify.IN_CLOSE_WRITE | pyinotify.IN_CREATE | \
-               pyinotify.IN_DELETE | pyinotify.IN_MOVED_TO
+               pyinotify.IN_DELETE | pyinotify.IN_MOVED_TO | \
+               pyinotify.IN_MOVED_FROM
         try:
             wd = self._watch_manager.add_watch(path, mask,
                                                proc_fun=self.handle_event,
                                                quiet=False).items()[0]
             self._wd = wd[1]
+            logger.info("Added watch '%i' for '%s'"%(self._wd,path))
         except pyinotify.WatchManagerError, e:
             logger.error("Couldn't add watch: %s, %s"%(e, e.wmd))
 
@@ -53,7 +55,7 @@ class Node(object):
                                 self._file_handler,
                                 self._regex,
                                 self._delay)
-                self._nodes.append(new_node)
+                self._nodes[curr_dir] = new_node
                 new_node.create(abs_dir)
 
     def delete(self):
@@ -63,11 +65,13 @@ class Node(object):
         if self._wd > -1:
             try:
                 self._watch_manager.rm_watch(self._wd, quiet=False)
+                logger.info("Removed watch '%i' successfully"%self._wd)
+                self._wd = -1
             except pyinotify.WatchManagerError, e:
                 logger.error("Couldn't remove watch: %s, %s"%(e, e.wmd))
-        for node in self._nodes:
+        for key, node in self._nodes.iteritems():
             node.delete()
-        del self._nodes[:]
+        self._nodes.clear()
 
     def handle_event(self, event):
         """
@@ -77,11 +81,22 @@ class Node(object):
         meantime calls to this method are simply not handled.
         event: the pyinotify event object
         """
-        # if it is a directory remove all sub-nodes then rebuild the sub-tree.
+        # if it is a directory remove it and its sub-nodes then rebuild the sub-tree.
         if event.dir:
-            self.delete()
-            self.create(event.path)
-            logger.info("Recreated the sub-tree '%s'"%event.path)
+            if (event.name != None) and (event.name in self._nodes):
+                self._nodes[event.name].delete()
+                del self._nodes[event.name]
+                logger.info("Deleted node '%s' and its sub-tree '%s'"%\
+                            (event.name, event.pathname))
+            if os.path.exists(event.pathname):
+                new_node = Node(self._watch_manager,
+                                self._file_handler,
+                                self._regex,
+                                self._delay)
+                self._nodes[event.name] = new_node
+                logger.info("Adding node '%s' and its sub-tree '%s'"%\
+                            (event.name, event.pathname))
+                new_node.create(event.pathname)
         else:
             if event.mask == pyinotify.IN_CLOSE_WRITE:
                 if not self._thread_active:
