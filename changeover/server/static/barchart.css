@@ -6,13 +6,9 @@
 }
 
 .bar {
-  fill: #8da0ae;
+  fill: #85B4D5;
 }
 
 .bar:hover {
-  fill: #626f78;
-}
-
-.x.axis path {
-  display: none;
+  fill: #6A90AA;
 }

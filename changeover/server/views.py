@@ -1,10 +1,12 @@
-from flask import render_template, jsonify
+from flask import render_template, request, jsonify
 from changeover.server import app
 from changeover.common.settings import Settings
-from changeover.server import status
-import json
-import random
+from changeover.server import status, stats
 
+
+#---------------------------------
+#          web interface
+#---------------------------------
 @app.route('/')
 @app.route('/status')
 def index():
@@ -22,18 +24,15 @@ def index():
                             ssh_error_msg = ssh_status['error_msg']
                            )
 
-
 @app.route('/statistics')
 def statistics():
     return render_template("statistics.html",
                            detector_name = Settings()['server']['name'])
 
-
 @app.route('/files')
 def files():
     return render_template("files.html",
                            detector_name = Settings()['server']['name'])
-
 
 @app.route('/changeover')
 def changeover():
@@ -41,16 +40,12 @@ def changeover():
                            detector_name = Settings()['server']['name'])
 
 
-@app.route('/rest/statistics/data_per_day', methods=['POST'])
-def rest_stats_data_per_day():
-    result = []
-    for i in range(48):
-        result.append({'bin': i, 'value': random.random()})
-    return json.dumps(result)
-
-@app.route('/rest/statistics/number_files_per_day', methods=['POST'])
-def rest_stats_number_files_per_day():
-    result = []
-    for i in range(48):
-        result.append({'bin': i, 'value': int(random.random()*40)})
-    return json.dumps(result)
+#---------------------------------
+#         REST interface
+#---------------------------------
+@app.route('/rest/statistics', methods=['POST'])
+def rest_stats():
+    year = request.form['year'] if 'year' in request.form else None
+    month = request.form['month'] if 'month' in request.form else None
+    day = request.form['day'] if 'day' in request.form else None
+    return jsonify(**stats.aggregate(year, month, day))

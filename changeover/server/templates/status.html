@@ -22,6 +22,18 @@ Couldn't connect to {{ ssh_target }}: {{ ssh_error_msg }}
 <center><div id="plot_data_today"></div></center>
 <center><div id="plot_number_files_today"></div></center>
 
-<script src="{{ url_for('static', filename='plots.js') }}" type="text/javascript" charset="utf-8"></script>
+<script>
+// request the statistics data for today via AJAX and plot the histograms
+var today = new Date();
+$.post("/rest/statistics",
+        {day: today.getDate(), month: today.getMonth()+1, year: today.getFullYear()},
+        function(data, status) {
+            if ((status == "success") && (data.status == "success")) {
+                barChart(data.hist_data, "#plot_data_today", 800, 300, "Transferred data", "Time", "Data [MB]");
+                barChart(data.hist_file, "#plot_number_files_today", 800, 300, "Transferred files", "Time", "Number");
+            }
+       },
+       "json");
+</script>
 
 {% endblock %}
