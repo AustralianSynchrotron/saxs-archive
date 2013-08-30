@@ -89,7 +89,7 @@ li.mainnav a:hover {
     background: #fff;
     border-top: 45px solid #0090D2;
     margin: -45px auto 0;
-    padding: 24px 0 10px 10px;
+    padding: 24px 10px 10px 10px;
     -moz-box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     -webkit-box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);

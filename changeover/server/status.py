@@ -1,5 +1,6 @@
 import os
 import logging
+import socket
 import paramiko
 from subprocess import Popen, PIPE
 from changeover.common.settings import Settings
@@ -45,10 +46,11 @@ def ssh_connected():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(conf['target']['host'], username=conf['target']['user'])
+        client.connect(conf['target']['host'],
+                       username=conf['target']['user'], timeout=10)
         client.close()
         result['connected'] = True
-    except paramiko.SSHException, e:
+    except (paramiko.SSHException, socket.error), e:
         logger.error("Can't connect to target host: %s"%e)
         result['error_msg'] = e
         client.close()

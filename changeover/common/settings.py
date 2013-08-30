@@ -1,4 +1,5 @@
 import os
+import socket
 import paramiko
 import ConfigParser
 from string import Template
@@ -88,10 +89,12 @@ def validate():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(conf['target']['host'], username=conf['target']['user'])
+        client.connect(conf['target']['host'],
+                       username=conf['target']['user'],
+                       timeout=20)
         client.close()
         logger.info("Connection to the target host was successfully established")
-    except paramiko.SSHException, e:
+    except (paramiko.SSHException, socket.error), e:
         if raven_client != None:
             raven_client.captureException()
         else:

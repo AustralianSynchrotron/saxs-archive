@@ -1,5 +1,6 @@
 import os
 import json
+import socket
 import paramiko
 from datetime import datetime, date
 from string import Template
@@ -100,7 +101,7 @@ class EventHandler(watchtree.WatchTreeFileHandler):
                     self._logger.error(e)
                 client.close()
 
-        except paramiko.SSHException, e:
+        except (paramiko.SSHException, socket.error), e:
             if self._raven_client != None:
                 self._raven_client.captureException()
             else:

@@ -10,6 +10,9 @@ from changeover.server import status, stats
 @app.route('/')
 @app.route('/status')
 def index():
+    """
+    Returns the status website
+    """
     conf = Settings()
     rsync_status = status.rsync_running()
     ssh_status = status.ssh_connected()
@@ -26,16 +29,25 @@ def index():
 
 @app.route('/statistics')
 def statistics():
+    """
+    Returns the statistics website
+    """
     return render_template("statistics.html",
                            detector_name = Settings()['server']['name'])
 
 @app.route('/files')
 def files():
+    """
+    Returns the file summary website
+    """
     return render_template("files.html",
                            detector_name = Settings()['server']['name'])
 
 @app.route('/changeover')
 def changeover():
+    """
+    Returns the changeover
+    """
     return render_template("changeover.html",
                            detector_name = Settings()['server']['name'])
 
@@ -45,6 +57,9 @@ def changeover():
 #---------------------------------
 @app.route('/rest/statistics', methods=['POST'])
 def rest_stats():
+    """
+    Returns the aggregated statistics for the specified year, month and day
+    """
     year = request.form['year'] if 'year' in request.form else None
     month = request.form['month'] if 'month' in request.form else None
     day = request.form['day'] if 'day' in request.form else None
