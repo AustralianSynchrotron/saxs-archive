@@ -1,0 +1,89 @@
+.changeover_form ul {
+    width:750px;
+    list-style-type:none;
+    list-style-position:outside;
+    margin:0px;
+    padding:0px;
+}
+
+.changeover_form li{
+    padding:12px;
+    border-bottom:1px solid #eee;
+    position:relative;
+}
+
+.changeover_form li:first-child, .changeover_form li:last-child {
+    border-bottom:1px solid #777;
+}
+
+.changeover_form h1 {
+    margin:0;
+    display: inline;
+}
+
+.changeover_form_required_field {
+    color:#d45252;
+    margin:5px 0 0 0;
+    display:inline;
+    float:right;
+}
+
+.changeover_form label {
+    width:300px;
+    margin-top: 3px;
+    display:inline-block;
+    float:left;
+    padding:3px;
+}
+
+.changeover_form input[type="text"] {
+    height:15px;
+    width:220px;
+    padding:5px 8px;
+    border:1px solid #aaa;
+    box-shadow: 0px 0px 3px #ccc, 0 10px 15px #eee inset;
+    border-radius:2px;
+}
+
+.changeover_form input[type="text"]:focus {
+    outline: none;
+    background: #fff;
+    border:1px solid #555;
+    box-shadow: 0 0 3px #aaa;
+}
+
+.changeover_form input[type="text"]:focus {
+    padding-right:70px;
+}
+
+.changeover_form input[type="text"] {
+    -moz-transition: padding .25s;
+    -webkit-transition: padding .25s;
+    -o-transition: padding .25s;
+    transition: padding .25s;
+}
+
+.changeover_form input[type="text"], {
+    padding-right:30px;
+}
+
+input:required {
+    background: #fff url(form_asterisk.png) no-repeat 98% center;
+}
+
+.changeover_form input:focus:invalid {
+    background: #fff url(form_invalid.png) no-repeat 98% center;
+    box-shadow: 0 0 5px #d45252;
+    border-color: #b03535
+}
+
+.changeover_form input:required:valid {
+    background: #fff url(form_valid.png) no-repeat 98% center;
+    box-shadow: 0 0 5px #5cd053;
+    border-color: #28921f;
+}
+
+.changeover_form input[type="checkbox"] {
+    height: 15px;
+    width: 20px;
+}

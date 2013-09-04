@@ -64,3 +64,10 @@ def rest_stats():
     month = request.form['month'] if 'month' in request.form else None
     day = request.form['day'] if 'day' in request.form else None
     return jsonify(**stats.aggregate(year, month, day))
+
+@app.route('/rest/rsync/exclude', methods=['GET'])
+def rest_rsync_exclude():
+    """
+    Returns the value of the rsync exclude setting
+    """
+    return jsonify(exclude=Settings()['rsync']['exclude'])
