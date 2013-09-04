@@ -1,7 +1,71 @@
 {% extends "layout.html" %}
+{% block head %}
+    {{ super() }}
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='barchart.css') }}">
+    <script src="{{ url_for('static', filename='jquery.min.js') }}" type="text/javascript" charset="utf-8"></script>
+    <script src="{{ url_for('static', filename='d3.v3.min.js') }}" type="text/javascript" charset="utf-8"></script>
+    <script src="{{ url_for('static', filename='barchart.js') }}" type="text/javascript" charset="utf-8"></script>
+{% endblock %}
+
 {% block content %}
 
-<h1>TEST</h1>
-Statistics
+<h1>Transferred data and files per month</h1>
+
+Choose a month and a year:
+<select id="selectMonth"></select> <select id="selectYear"></select>
+
+<center><div id="plot_data_today"></div></center>
+<center><div id="plot_number_files_today"></div></center>
+
+<script>
+// plot the bar chart
+function plotBarcharts(month, year) {
+    $.post("/rest/statistics",
+            {month: month, year: year},
+            function(data, status) {
+                if ((status == "success") && (data.status == "success")) {
+                    barChart(data.hist_data, "#plot_data_today", 800, 300, "Transferred data", "Time", "Data [MB]");
+                    barChart(data.hist_file, "#plot_number_files_today", 800, 300, "Transferred files", "Time", "Number");
+                }
+            },
+            "json");
+}
+
+// date definitions
+var today = new Date();
+var monthNames = [ "January", "February", "March", "April", "May", "June",
+                   "July", "August", "September", "October", "November", "December" ];
+
+// get the select fields to avoid going over the DOM multiple times
+var monthSelect = $("#selectMonth");
+var yearSelect = $("#selectYear");
+
+// fill the month and year select fields
+for (i=0; i<12; i++) {
+    $('<option/>').val(i+1).html(monthNames[i]).appendTo(monthSelect);
+}
+
+for (i=2013; i<today.getFullYear()+1; i++) {
+    $('<option/>').val(i).html(i).appendTo(yearSelect);
+}
+
+// set the current month and year
+$(monthSelect).val(today.getMonth()+1);
+$(yearSelect).val(today.getFullYear());
+
+// event handlers for the change of an element in the select fields
+$('#selectMonth').change(function(){
+    plotBarcharts($(this).val(), $(yearSelect).val());
+});
+
+$('#selectYear').change(function(){
+    plotBarcharts($(monthSelect).val(), $(this).val());
+});
+
+// show the plots for the current month and year
+$(document).ready(function() {
+    plotBarcharts($(monthSelect).val(), $(yearSelect).val());
+});
+</script>
 
 {% endblock %}
