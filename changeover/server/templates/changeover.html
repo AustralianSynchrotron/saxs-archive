@@ -1,15 +1,14 @@
 {% extends "layout.html" %}
-
 {% block head %}
     {{ super() }}
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='button.css') }}">
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='form.css') }}">
     <script src="{{ url_for('static', filename='jquery.min.js') }}" type="text/javascript" charset="utf-8"></script>
+    <script src="{{ url_for('static', filename='jquery.validate.min.js') }}" type="text/javascript" charset="utf-8"></script>
 {% endblock %}
 
 {% block content %}
-
-<form class="changeover_form" action="" method="post">
+<form class="changeover_form" id="changeover_form" action="">
 <ul>
     <li>
         <h1>Changeover</h1>
@@ -20,55 +19,61 @@
     </li>
     <li>
         <label for="folder_create">Create new folder:</label>
-        <input type="checkbox" id="folder_create" checked/>
+        <input type="checkbox" id="folder_create" name="folder_create" checked/>
     </li>
     <li>
         <label for="folder_epn" class="folder">Folder name (EPN):</label>
-        <input type="text" id="folder_epn" placeholder="Scientist_EPN" class="folder" required/>
+        <input type="text" id="folder_epn" name="folder_epn" placeholder="Scientist_EPN" class="folder" required/>
     </li>
     <li>
         <h1>rsync</h1>
     </li>
     <li>
         <label for="rsync_enabled">Enabled:</label>
-        <input type="checkbox" id="rsync_enabled" checked/>
+        <input type="checkbox" id="rsync_enabled" name="rsync_enabled" checked/>
     </li>
     <li>
         <label for="rsync_checksum" class="rsync">Checksum:</label>
-        <input type="checkbox" id="rsync_checksum" class="rsync" checked/>
+        <input type="checkbox" id="rsync_checksum" name="rsync_checksum" class="rsync" checked/>
     </li>
     <li>
         <label for="rsync_compress" class="rsync">Compression:</label>
-        <input type="checkbox" id="rsync_compress" class="rsync" checked/>
+        <input type="checkbox" id="rsync_compress" name="rsync_compress" class="rsync" checked/>
     </li>
     <li>
         <label for="rsync_exclude" class="rsync">Exclude files:</label>
-        <input type="text" id="rsync_exclude" class="rsync"/>
+        <input type="text" id="rsync_exclude" name="rsync_exclude" class="rsync"/>
     </li>
     <li>
         <h1>post processing</h1>
     </li>
     <li>
         <label for="post_checksum">Perform CRC32 check:</label>
-        <input type="checkbox" id="post_checksum" checked/>
+        <input type="checkbox" id="post_checksum" name="post_checksum" checked/>
     </li>
     <li>
         <label for="post_delete" class="rsync">Delete existing folders after rsync:</label>
-        <input type="checkbox" id="post_delete" class="rsync" checked/>
+        <input type="checkbox" id="post_delete" name="post_delete" class="rsync" checked/>
     </li>
     <li>
-        <button class="button green" type="submit">Start changeover</button>
+        <button class="button green" id="submit_button" type="submit">Start changeover</button>
     </li>
 </ul>
 </form>
 
 
 <script>
-    $.getJSON("/rest/rsync/exclude", function(data, status) {
+    $(document).ready(function() {
+        $("changeover_form").validate({highlight: function(element) {
+                $(element).closest('.control-group').removeClass('success').addClass('error');
+        }});
+
+        $.getJSON("/rest/rsync/exclude", function(data, status) {
             if (status == "success") {
                 $('#rsync_exclude').val(data.exclude);
             }
         });
+    });
 
     $('#rsync_enabled').click(function() {
         if ($(this).is(':checked')) {
@@ -91,6 +96,21 @@
             $('label.folder').css({color:'#aaa'});
         }
     });
-</script>
 
+    $('#submit_button').click(function(event) {
+        if ($("#changeover_form").valid()) {
+            $.ajax({
+                url: "/rest/changeover/start",
+                type: 'post',
+                dataType: 'json',
+                async: false,
+                data: $('#changeover_form').serialize(),
+                success: function(data) {
+                    //TODO: check success and jump to progress page
+                }
+            })
+            event.preventDefault();
+        }
+    });
+</script>
 {% endblock %}

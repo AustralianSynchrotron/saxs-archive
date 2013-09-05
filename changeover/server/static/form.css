@@ -87,3 +87,9 @@ input:required {
     height: 15px;
     width: 20px;
 }
+
+label.error {
+    color: #d45252;
+    margin-left: 620px;
+    margin-top: -23px;
+}

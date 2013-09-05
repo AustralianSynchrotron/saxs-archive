@@ -65,6 +65,14 @@ def rest_stats():
     day = request.form['day'] if 'day' in request.form else None
     return jsonify(**stats.aggregate(year, month, day))
 
+@app.route('/rest/changeover/start', methods=['POST'])
+def rest_changeover_start():
+    """
+    Starts the changeover process thread
+    """
+    print request.form
+    return jsonify(success=True)
+
 @app.route('/rest/rsync/exclude', methods=['GET'])
 def rest_rsync_exclude():
     """
