@@ -1,3 +1,4 @@
+import json
 from flask import render_template, request, jsonify
 from changeover.server import app
 from changeover.common.settings import Settings
@@ -46,10 +47,21 @@ def files():
 @app.route('/changeover')
 def changeover():
     """
-    Returns the changeover
+    Returns the changeover website
     """
+    conf = Settings()
+    folders = []
+    for folder in conf['source']['folder_list']:
+        if folder.startswith('${') and folder.endswith('}'):
+            folders.append(folder[2:len(folder)-1])
+
+    exclude_str = ",".join(json.loads(conf['rsync']['exclude']))
+
     return render_template("changeover.html",
-                           detector_name = Settings()['server']['name'])
+                           detector_name = conf['server']['name'],
+                           source_folder = conf['source']['folder'],
+                           exclude = exclude_str,
+                           folders=folders)
 
 
 #---------------------------------
@@ -73,9 +85,9 @@ def rest_changeover_start():
     print request.form
     return jsonify(success=True)
 
-@app.route('/rest/rsync/exclude', methods=['GET'])
-def rest_rsync_exclude():
+@app.route('/rest/settings', methods=['GET'])
+def rest_settings():
     """
-    Returns the value of the rsync exclude setting
+    Returns the dictionary of the settings
     """
-    return jsonify(exclude=Settings()['rsync']['exclude'])
+    return jsonify(**Settings())

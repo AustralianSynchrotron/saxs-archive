@@ -21,9 +21,15 @@
         <label for="folder_create">Create new folder:</label>
         <input type="checkbox" id="folder_create" name="folder_create" checked/>
     </li>
+    {% for folder in folders %}
     <li>
-        <label for="folder_epn" class="folder">Folder name (EPN):</label>
-        <input type="text" id="folder_epn" name="folder_epn" placeholder="Scientist_EPN" class="folder" required/>
+        <label for="folder_{{ folder }}" class="folder">Folder name ({{ folder }}):</label>
+        <input type="text" id="folder_{{ folder }}" name="folder_{{ folder }}" placeholder="{{ folder }}" class="folder" required/>
+    </li>
+    {% endfor %}
+    <li>
+        <label for="folder_result" class="folder">New folder:</label>
+        <span id="folder_result" class="folder"></span>
     </li>
     <li>
         <h1>rsync</h1>
@@ -42,7 +48,7 @@
     </li>
     <li>
         <label for="rsync_exclude" class="rsync">Exclude files:</label>
-        <input type="text" id="rsync_exclude" name="rsync_exclude" class="rsync"/>
+        <input type="text" id="rsync_exclude" name="rsync_exclude" class="rsync" value="{{ exclude }}"/>
     </li>
     <li>
         <h1>post processing</h1>
@@ -63,16 +69,33 @@
 
 
 <script>
+    function buildFolderResult() {
+        var pattern = new RegExp('(\\$\\{[A-z0-9]+\\})+','g');
+        $('#folder_result').text(String("{{ source_folder }}").replace(pattern, function(match) {
+            var name = match.substring(2,match.length-1);
+            var input_text = $('#folder_'+name).val();
+            if (input_text) {
+                return input_text;
+            } else {
+                return match;
+            }
+        }));
+    }
+
     $(document).ready(function() {
         $("changeover_form").validate({highlight: function(element) {
                 $(element).closest('.control-group').removeClass('success').addClass('error');
         }});
 
-        $.getJSON("/rest/rsync/exclude", function(data, status) {
-            if (status == "success") {
-                $('#rsync_exclude').val(data.exclude);
-            }
-        });
+        buildFolderResult();
+    });
+
+    $('input.folder').keyup(function() {
+        buildFolderResult();
+    });
+
+    $('input.folder').change(function() {
+        buildFolderResult();
     });
 
     $('#rsync_enabled').click(function() {
@@ -90,10 +113,12 @@
             $('input.folder').removeAttr('disabled');
             $('input.folder').attr('required', true);
             $('label.folder').css({color:'#444'});
+            $('span.folder').css({color:'#444'});
         } else {
             $('input.folder').attr('disabled', true);
             $('input.folder').removeAttr('required');
             $('label.folder').css({color:'#aaa'});
+            $('span.folder').css({color:'#aaa'});
         }
     });
 

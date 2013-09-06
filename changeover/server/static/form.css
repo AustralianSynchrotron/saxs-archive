@@ -12,8 +12,12 @@
     position:relative;
 }
 
-.changeover_form li:first-child, .changeover_form li:last-child {
+.changeover_form li:first-child {
     border-bottom:1px solid #777;
+}
+
+.changeover_form li:last-child {
+    border-bottom: none;
 }
 
 .changeover_form h1 {
