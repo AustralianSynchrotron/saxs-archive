@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block head %}
+    {{ super() }}
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='form.css') }}">
+    <script src="{{ url_for('static', filename='jquery.min.js') }}" type="text/javascript" charset="utf-8"></script>
+{% endblock %}
+
+{% block content %}
+<div class="changeover_form" id="changeover_form">
+<ul>
+    <li>
+        <h1>Settings (file + internal)</h1>
+    </li>
+    {% for sec_key, sec_dict in settings.iteritems() %}
+    <li>
+        <h1>{{ sec_key }}</h1>
+    </li>
+    {% for conf_key, conf_value in sec_dict.iteritems() %}
+    <li>
+        <label for="{{ sec_key }}_{{ conf_key }}">{{ conf_key }}</label>
+        <span id="{{ sec_key }}_{{ conf_key }}">{{ conf_value }}</span>
+    </li>
+    {% endfor %}
+    {% endfor %}
+</ul>
+</div>
+{% endblock %}

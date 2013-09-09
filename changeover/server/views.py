@@ -63,6 +63,15 @@ def changeover():
                            exclude = exclude_str,
                            folders=folders)
 
+@app.route('/settings')
+def settings():
+    """
+    Returns the settings summary website
+    """
+    return render_template("settings.html",
+                           detector_name = Settings()['server']['name'],
+                           settings = Settings())
+
 
 #---------------------------------
 #         REST interface
