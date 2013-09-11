@@ -1,5 +1,5 @@
 import json
-from flask import render_template, request, jsonify, redirect, url_for
+from flask import render_template, request, jsonify, redirect, url_for, flash
 from changeover.server import app
 from changeover.common.settings import Settings
 from changeover.server import status, stats, changeoverthread
@@ -55,6 +55,7 @@ def changeover():
     """
     curr_thread = getattr(app, 'changeover_thread', None)
     if (curr_thread != None) and (curr_thread.is_alive()):
+        flash("Changeover is in progress.")
         return redirect(url_for('changeover_progress'))
     else:
         conf = Settings()
@@ -87,6 +88,7 @@ def changeover_progress():
             return render_template("changeover_result.html",
                                    detector_name = conf['server']['name'])
         else:
+            flash("No previous changeover process was found.")
             return redirect(url_for('changeover'))
 
 

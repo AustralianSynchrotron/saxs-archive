@@ -32,6 +32,7 @@ if not settings.validate():
     exit()
 
 conf = settings.Settings()
+app.secret_key = conf['server']['secret_key']
 app.run(host=conf['server']['host'],
         port=int(conf['server']['port']),
         debug=conf['logging']['debug'])
