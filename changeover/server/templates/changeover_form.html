@@ -8,6 +8,13 @@
 {% endblock %}
 
 {% block content %}
+
+{% if changeover_running %}
+    Changeover is in progress. Redirecting to progress page...
+    <script>
+        window.location = "/changeover/progress";
+    </script>
+{% else %}
 <form class="changeover_form" id="changeover_form" action="">
 <ul>
     <li>
@@ -66,7 +73,6 @@
     </li>
 </ul>
 </form>
-
 
 <script>
     function buildFolderResult() {
@@ -131,11 +137,14 @@
                 async: false,
                 data: $('#changeover_form').serialize(),
                 success: function(data) {
-                    //TODO: check success and jump to progress page
+                    if (data.success) {
+                        window.location = "/changeover/progress";
+                    }
                 }
             })
             event.preventDefault();
         }
     });
 </script>
+{% endif %}
 {% endblock %}
