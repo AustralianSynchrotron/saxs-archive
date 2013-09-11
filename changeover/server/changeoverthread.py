@@ -26,10 +26,10 @@ class ChangeoverThread(threading.Thread):
         """
         The main run method of the thread.
         """
-        #self._stop.wait(10)
+        self._stop.wait(10)
         if self.stopped():
             return
-        #logger.info("Aggregation thread was stopped")
+        
 
     def stop(self):
         """

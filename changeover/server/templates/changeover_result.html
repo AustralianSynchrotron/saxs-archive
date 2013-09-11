@@ -5,12 +5,5 @@
 {% endblock %}
 
 {% block content %}
-{% if show_result %}
 Result
-{% else %}
-    A changeover hasn't been started yet. Redirecting to form...
-    <script>
-        window.location = "/changeover";
-    </script>
-{% endif %}
 {% endblock %}

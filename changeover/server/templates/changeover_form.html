@@ -9,12 +9,6 @@
 
 {% block content %}
 
-{% if changeover_running %}
-    Changeover is in progress. Redirecting to progress page...
-    <script>
-        window.location = "/changeover/progress";
-    </script>
-{% else %}
 <form class="changeover_form" id="changeover_form" action="">
 <ul>
     <li>
@@ -146,5 +140,4 @@
         }
     });
 </script>
-{% endif %}
 {% endblock %}

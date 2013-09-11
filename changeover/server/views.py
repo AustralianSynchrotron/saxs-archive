@@ -1,5 +1,5 @@
 import json
-from flask import render_template, request, jsonify, g
+from flask import render_template, request, jsonify, redirect, url_for
 from changeover.server import app
 from changeover.common.settings import Settings
 from changeover.server import status, stats, changeoverthread
@@ -53,22 +53,22 @@ def changeover():
     is in progress or not the user is redirected to the progress page or
     the changeover form is shown.
     """
-    conf = Settings()
-    folders = []
-    for folder in conf['source']['folder_list']:
-        if folder.startswith('${') and folder.endswith('}'):
-            folders.append(folder[2:len(folder)-1])
-
-    exclude_str = ",".join(json.loads(conf['rsync']['exclude']))
-
     curr_thread = getattr(app, 'changeover_thread', None)
-    return render_template("changeover_form.html",
-                           detector_name = conf['server']['name'],
-                           changeover_running = (curr_thread != None) and \
-                                                (curr_thread.is_alive()),
-                           source_folder = conf['source']['folder'],
-                           exclude = exclude_str,
-                           folders=folders)
+    if (curr_thread != None) and (curr_thread.is_alive()):
+        return redirect(url_for('changeover_progress'))
+    else:
+        conf = Settings()
+        folders = []
+        for folder in conf['source']['folder_list']:
+            if folder.startswith('${') and folder.endswith('}'):
+                folders.append(folder[2:len(folder)-1])
+
+        exclude_str = ",".join(json.loads(conf['rsync']['exclude']))
+        return render_template("changeover_form.html",
+                               detector_name = conf['server']['name'],
+                               source_folder = conf['source']['folder'],
+                               exclude = exclude_str,
+                               folders=folders)
 
 
 @app.route('/changeover/progress')
@@ -83,9 +83,11 @@ def changeover_progress():
         return render_template("changeover_progress.html",
                                detector_name = conf['server']['name'])
     else:
-        return render_template("changeover_result.html",
-                               detector_name = conf['server']['name'],
-                               show_result = (curr_thread != None))
+        if curr_thread != None:
+            return render_template("changeover_result.html",
+                                   detector_name = conf['server']['name'])
+        else:
+            return redirect(url_for('changeover'))
 
 
 @app.route('/settings')
