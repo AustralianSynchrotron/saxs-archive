@@ -33,10 +33,11 @@ class EventHandler(watchtree.WatchTreeFileHandler):
             self._stats_file.close()
 
 
-    def process(self, path):
+    def process(self, path, file_list):
         """
         Run the rsync process after being notified of a change in the filesystem.
         path: The source path for the rsync process
+        file_list: The list of files that should be rsynced
         """
         conf = Settings()
         
@@ -87,7 +88,7 @@ class EventHandler(watchtree.WatchTreeFileHandler):
 
             try:    
                 # run the rsync process and get the stats dictionary
-                rsync_stats = syncutils.run_rsync(source, target,
+                rsync_stats = syncutils.run_rsync(source, target, file_list,
                                                   client, options,
                                                   json.loads(conf['rsync']['exclude']))
                 self._write_stats_file(rsync_stats)

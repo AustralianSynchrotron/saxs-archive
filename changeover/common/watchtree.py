@@ -4,22 +4,25 @@ import logging
 import pyinotify
 import threading
 
-logger = logging.getLogger(__name__)
-
+logger  = logging.getLogger(__name__)
+fh_lock = threading.Lock()
 
 class FileHandlerThread(threading.Thread):
     """
     Thread class that waits the delay time and then calls the file handler process
     """
-    def __init__(self, delay, file_handler, path):
+    def __init__(self, delay, file_list, file_handler, path):
         """
         Constructor of the file handler thread class
         delay: time in seconds the thread should wait
+        file_list: reference to the list of triggered files. Only the names
+                   of the files as the path is given by the node
         file_handler: reference to a file handler object
         path: The path of the node the thread was started from
         """
         super(FileHandlerThread, self).__init__()
         self._delay = delay
+        self._file_list = file_list
         self._file_handler = file_handler
         self._stop = threading.Event()
         self._path = path
@@ -31,7 +34,17 @@ class FileHandlerThread(threading.Thread):
         """
         self._stop.wait(self._delay)
         if not self.stopped():
-            self._file_handler.process(self._path)
+            # copy file list and clear referenced file list
+            local_file_list = []
+            fh_lock.acquire()
+            try:
+                local_file_list = self._file_list[:]
+                del self._file_list[:]
+            finally:
+                fh_lock.release()
+
+            # process file handler
+            self._file_handler.process(self._path, local_file_list)
         else:
             logger.info("File handler thread was stopped")
 
@@ -67,7 +80,8 @@ class Node(object):
         self._file_handler = file_handler
         self._regex = regex
         self._delay = delay
-        self._fh_thread = FileHandlerThread(delay, file_handler, "")
+        self._fh_thread = FileHandlerThread(delay, [], file_handler, "")
+        self._files = []
 
     def create(self, path):
         """
@@ -145,12 +159,22 @@ class Node(object):
                 new_node.create(event.pathname)
         else:
             if event.mask == pyinotify.IN_CLOSE_WRITE:
-                if (os.path.exists(event.path)) and (not self._fh_thread.is_alive()):
-                    if self._regex != None and \
-                        self._regex.search(event.name) != None:
-                        return
+                # Skip files that match the exclude regex
+                if self._regex != None and self._regex.search(event.name) != None:
+                    return
 
+                # Add the file to the list of notified files
+                if os.path.exists(event.path):
+                    fh_lock.acquire()
+                    try:
+                        self._files.append(event.name)
+                    finally:
+                        fh_lock.release()
+
+                # If the thread is not running yet, start it
+                if not self._fh_thread.is_alive():
                     self._fh_thread = FileHandlerThread(self._delay,
+                                                        self._files,
                                                         self._file_handler,
                                                         event.path)
                     self._fh_thread.start()
