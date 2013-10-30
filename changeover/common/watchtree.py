@@ -7,18 +7,18 @@ import threading
 logger = logging.getLogger(__name__)
 
 
-class AggregationThread(threading.Thread):
+class FileHandlerThread(threading.Thread):
     """
     Thread class that waits the delay time and then calls the file handler process
     """
     def __init__(self, delay, file_handler, path):
         """
-        Constructor of the aggregation thread class
+        Constructor of the file handler thread class
         delay: time in seconds the thread should wait
         file_handler: reference to a file handler object
         path: The path of the node the thread was started from
         """
-        super(AggregationThread, self).__init__()
+        super(FileHandlerThread, self).__init__()
         self._delay = delay
         self._file_handler = file_handler
         self._stop = threading.Event()
@@ -33,7 +33,7 @@ class AggregationThread(threading.Thread):
         if not self.stopped():
             self._file_handler.process(self._path)
         else:
-            logger.info("Aggregation thread was stopped")
+            logger.info("File handler thread was stopped")
 
     def stop(self):
         """
@@ -67,7 +67,7 @@ class Node(object):
         self._file_handler = file_handler
         self._regex = regex
         self._delay = delay
-        self._agg_thread = AggregationThread(delay, file_handler, "")
+        self._fh_thread = FileHandlerThread(delay, file_handler, "")
 
     def create(self, path):
         """
@@ -106,8 +106,8 @@ class Node(object):
         if self._wd > -1:
             try:
                 # stop a running aggregation thread
-                if self._agg_thread.is_alive():
-                    self._agg_thread.stop()
+                if self._fh_thread.is_alive():
+                    self._fh_thread.stop()
 
                 # remove watch
                 self._watch_manager.rm_watch(self._wd, quiet=False)
@@ -122,9 +122,9 @@ class Node(object):
     def handle_event(self, event):
         """
         The callback method for notification events
-        If the delay time is larger than 0, a thread is started in order to wait
-        for for the delay time to pass and then calls the rsync process. In the
-        meantime calls to this method are simply not handled.
+        A thread is started in order to wait for the delay time. Afterwards
+        it calls the rsync process. In the meantime calls to this method are
+        simply not handled.
         event: the pyinotify event object
         """
         # if it is a directory remove it and its sub-nodes then rebuild the sub-tree.
@@ -145,19 +145,15 @@ class Node(object):
                 new_node.create(event.pathname)
         else:
             if event.mask == pyinotify.IN_CLOSE_WRITE:
-                if (os.path.exists(event.path)) and (not self._agg_thread.is_alive()):
+                if (os.path.exists(event.path)) and (not self._fh_thread.is_alive()):
                     if self._regex != None and \
                         self._regex.search(event.name) != None:
                         return
 
-                    if self._delay > 0:
-                        self._agg_thread = AggregationThread(self._delay,
-                                                             self._file_handler,
-                                                             event.path)
-                        self._agg_thread.start()
-                        logger.info("Started event aggregation thread")
-                    else:
-                        self._file_handler.process(event.path)
+                    self._fh_thread = FileHandlerThread(self._delay,
+                                                        self._file_handler,
+                                                        event.path)
+                    self._fh_thread.start()
 
 
 class WatchTree(object):
