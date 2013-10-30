@@ -18,8 +18,10 @@ class ChangeoverParser(ConfigParser.ConfigParser):
         for key in conf_dict:
             conf_dict[key] = dict(self._defaults, **conf_dict[key])
             for k, v in conf_dict[key].iteritems():
-                if v.lower() in ["true", "false"]:
-                    conf_dict[key][k] = bool(v)
+                if v.lower() == "true":
+                    conf_dict[key][k] = True
+                elif v.lower == "false":
+                    conf_dict[key][k] = False
             conf_dict[key].pop('__name__', None)
         return conf_dict
 

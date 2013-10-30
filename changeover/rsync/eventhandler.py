@@ -82,8 +82,8 @@ class EventHandler(watchtree.WatchTreeFileHandler):
 
             # set the rsync options
             options = "-a"
-            options += "z" if conf['rsync']['compress'] else ""
-            options += "c" if conf['rsync']['checksum'] else ""
+            options += "z" if conf['rsync']['compress']==True else ""
+            options += "c" if conf['rsync']['checksum']==True else ""
 
             try:    
                 # run the rsync process and get the stats dictionary
