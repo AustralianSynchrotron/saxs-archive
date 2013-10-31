@@ -94,18 +94,19 @@ def run_rsync(source, target, file_list, client_ssh, options="", exclude_list=[]
     Returns a dictionary with information collected from rsync
     """
     conf = Settings()['target']
-    cmd =  "${sudo} chown -R ${user}:${group} ${dir}"
-    cmd += " && ${sudo} chmod -R ${chmod} ${dir}"
-    cmd_dict = {'sudo' : "sudo" if conf['sudo'] else "",
-                'dir'  : target,
-                'user' : "",
-                'group': "",
-                'chmod': conf['permission']
+    cmd =  "${sudo} chown ${user}:${group} ${target}"
+    cmd += " && ${sudo} chmod ${chmod} ${target}"
+    cmd_dict = {'sudo'   : "sudo" if conf['sudo']==True else "",
+                'target' : "",
+                'user'   : "",
+                'group'  : "",
+                'chmod'  : conf['permission']
                }
 
-    # pre-chown: change the owner of the target dir + files to the login user
+    # pre-chown: change the owner of the target dir to the login user
     cmd_dict['user'] = conf['user']
     cmd_dict['group'] = conf['user']
+    cmd_dict['target'] = target
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
     client_error = stderr.read()
     if client_error:
@@ -147,6 +148,8 @@ def run_rsync(source, target, file_list, client_ssh, options="", exclude_list=[]
     # post-chown: change the owner of the target dir + files to the target user
     cmd_dict['user'] = conf['owner']
     cmd_dict['group'] = conf['group']
+    cmd_dict['target'] = " ".join(os.path.join(target,f) for f in file_list)
+    cmd_dict['target'] += " %s"%target
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
     client_error = stderr.read()
     if client_error:
