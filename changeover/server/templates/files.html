@@ -1,29 +1,46 @@
 {% extends "layout.html" %}
 {% block head %}
     {{ super() }}
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='files.css') }}">
     <script src="{{ url_for('static', filename='jquery.min.js') }}" type="text/javascript" charset="utf-8"></script>
-
 {% endblock %}
 
 {% block content %}
-<div id = "folders"><img src="{{ url_for('static', filename='ajax_loader.gif') }}"></div>
+<div id = "folders"><center><img src="{{ url_for('static', filename='ajax_loader.gif') }}"></center></div>
 
 <script>
 // load files when a folder header is clicked
 function loadFiles(id, source, target) {
-    $('#'+id).html("<img src=\"{{ url_for('static', filename='ajax_loader.gif') }}\">");
+    $('#'+id).html("<center><img src=\"{{ url_for('static', filename='ajax_loader.gif') }}\"></center>");
 
     $.post("/rest/files/files", {source: source, target: target}, "json"
     ).done(function(data) {
         var files = [];
+        var row = 0;
         $.each(data['files'], function(file, values) {
-            files.push("<li>"+file+"</li>");
+            var missing_str = "<img src=\"{{ url_for('static', filename='form_valid.png') }}\">";
+            var size_str = missing_str;
+            var date_str = missing_str;
+            var tr_class = "";
+            var file_ok = values['exists'] && values['same_size'] && values['same_date'];
+            var warning_str = "";
+            if (!values['exists']) {
+                missing_str = "missing";
+            } else {
+                if (!values['same_size']) size_str = "size different";
+                if (!values['same_date']) date_str = "time different";
+            }
+
+            if (!file_ok) warning_str = "<img src=\"{{ url_for('static', filename='warning.png') }}\"> ";
+            if (row%2 == 0) tr_class = "odd";
+            files.push("<tr class=\""+tr_class+"\"><td class=\"filename\">"+warning_str+file+"</td><td>"+missing_str+"</td><td>"+size_str+"</td><td>"+date_str+"</td></tr>");
+            row += 1;
         });
     
         $('#'+id).empty();
-        $('<ul/>', {
-        //"class": "my-new-list",
-            html: files.join("")
+        $('<table/>', {
+            "class": "file",
+            html: "<tr class=\"header\"><th class=\"filename\">Filename</th><th>Archive</th><th>Size</th><th>Time</th></tr>"+files.join("")
         }).appendTo('#'+id);
     });
 };
@@ -36,16 +53,15 @@ $.getJSON("/rest/files/folders", function(data) {
         if (values['exists']) {
             id += 1;
             var id_str = "file_content"+id;
-            folders.push("<li><a href=\"#\" onClick=\"return loadFiles('"+id_str+"','"+source+"','"+values['target']+"')\">" + source + "</a><div id=\""+id_str+"\"></div></li>");
+            folders.push("<li class=\"folder\"><a href=\"#\" onClick=\"return loadFiles('"+id_str+"','"+source+"','"+values['target']+"')\">" + source + "</a><div id=\""+id_str+"\"></div></li>");
         } else {
-            folders.push("<li>"+source+"</li>");
+            folders.push("<li class=\"folder missing\">[missing on archive] "+source+"</li>");
         }
         
     });
 
     $('#folders').empty();
     $('<ul/>', {
-    //"class": "my-new-list",
         html: folders.join("")
     }).appendTo('#folders');
 });

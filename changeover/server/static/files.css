@@ -1,0 +1,65 @@
+
+li.folder {
+    list-style-image: url('folder.png');
+    font-family: 'Quicksand', Arial, sans-serif;
+    font-weight: bold;
+    font-size: 120%;
+    letter-spacing: -1px;
+    word-spacing: 2px;
+    margin:0 10px 0px 0;
+    -webkit-margin-before: 10px;
+    -webkit-margin-after: 0px;
+    -webkit-font-smoothing: antialiased;
+}
+
+li.missing {
+    list-style-image: url('folder_missing.png');
+    color: #d45252;
+}
+
+table.file {
+    font-family: 'Droid Serif', Arial, sans-serif;
+    font-size: 80%;
+    font-weight: normal;
+    letter-spacing: 0px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+tr.odd {
+    background-color: #f0f0f0;
+}
+
+tr.header {
+    background-color: #ccc;
+    color: #444;
+}
+
+td {
+    width: 120px;
+    height: 30px;
+    text-align: center;
+    vertical-align: middle;
+    border-right: 4px solid #fff;
+    border-left: 4px solid #fff;
+    color: #d45252;
+}
+
+td img {
+    vertical-align: middle;
+}
+
+th {
+    width: 120px;
+    height: 30px;
+    text-align: center;
+    border-right: 4px solid #fff;
+    border-left: 4px solid #fff;
+}
+
+td.filename {
+    padding-left: 4px;
+    text-align: left;
+    width: 400px;
+    color: #444;
+}
