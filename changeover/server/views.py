@@ -43,8 +43,7 @@ def web_files():
     Returns the file summary website
     """
     return render_template("files.html",
-                           detector_name = Settings()['server']['name'],
-                           dir_diff = files.diff())
+                           detector_name = Settings()['server']['name'])
 
 
 @app.route('/changeover')
@@ -169,3 +168,22 @@ def rest_settings():
     Returns the dictionary of the settings
     """
     return jsonify(**Settings())
+
+
+@app.route('/rest/files/folders', methods=['GET'])
+def rest_files_folders():
+    """
+    Returns a list of the source and their associated target folders together
+    with a flag that indicates if the target folder exists.
+    """
+    return jsonify(**files.folders())
+
+
+@app.route('/rest/files/files', methods=['POST'])
+def rest_files_files():
+    """
+    Returns a file list comparing the specified source and target folders.
+    Assumes the target folder exists!
+    """
+    rf = request.form
+    return jsonify(**files.files(rf.get('source', ""), rf.get('target', "")))

@@ -1,45 +1,54 @@
 {% extends "layout.html" %}
 {% block head %}
     {{ super() }}
+    <script src="{{ url_for('static', filename='jquery.min.js') }}" type="text/javascript" charset="utf-8"></script>
 
 {% endblock %}
 
 {% block content %}
-<ul>
+<div id = "folders"><img src="{{ url_for('static', filename='ajax_loader.gif') }}"></div>
+
+<script>
+// load files when a folder header is clicked
+function loadFiles(id, source, target) {
+    $('#'+id).html("<img src=\"{{ url_for('static', filename='ajax_loader.gif') }}\">");
+
+    $.post("/rest/files/files", {source: source, target: target}, "json"
+    ).done(function(data) {
+        var files = [];
+        $.each(data['files'], function(file, values) {
+            files.push("<li>"+file+"</li>");
+        });
     
-{% for folder in dir_diff %}
-    <li>
-        <h1>{{ folder }}</h1>
-        {% if dir_diff[folder]['trg_folder_exists'] %}
-            <table>
-            {% for file_key, file_dict in dir_diff[folder]['files'].iteritems() %}
-            <tr>
-            <td>{{ file_key }}</td>
+        $('#'+id).empty();
+        $('<ul/>', {
+        //"class": "my-new-list",
+            html: files.join("")
+        }).appendTo('#'+id);
+    });
+};
 
-            {% if file_dict['trg_file_exists'] %}
-                <td>exist</td>
-            {% else %}
-                <td>doesn't exist on target</td>
-            {% endif %}
+// request the folders via AJAX
+$.getJSON("/rest/files/folders", function(data) {
+    var folders = [];
+    var id = 0;
+    $.each(data, function(source, values) {
+        if (values['exists']) {
+            id += 1;
+            var id_str = "file_content"+id;
+            folders.push("<li><a href=\"#\" onClick=\"return loadFiles('"+id_str+"','"+source+"','"+values['target']+"')\">" + source + "</a><div id=\""+id_str+"\"></div></li>");
+        } else {
+            folders.push("<li>"+source+"</li>");
+        }
+        
+    });
 
-            {% if file_dict['same_size'] %}
-                <td>same size</td>
-            {% else %}
-                <td>not same size</td>
-            {% endif %}
+    $('#folders').empty();
+    $('<ul/>', {
+    //"class": "my-new-list",
+        html: folders.join("")
+    }).appendTo('#folders');
+});
+</script>
 
-            {% if file_dict['same_date'] %}
-                <td>same date</td>
-            {% else %}
-                <td>not same date</td>
-            {% endif %}
-            </tr>
-            {% endfor %}
-            </table>
-        {% else %}
-            Folder doesn't exist!
-        {% endif %}
-    </li>
-{% endfor %}
-</ul>
 {% endblock %}
