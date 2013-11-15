@@ -1,10 +1,26 @@
 import os
+import re
 import logging
 from string import Template
 from subprocess import Popen, PIPE
 from changeover.common.settings import Settings
 
 logger = logging.getLogger(__name__)
+
+
+def get_source_folders():
+    """
+    Returns a list of the source folders matching the template given in the
+    configuration file.
+    """
+    conf = Settings()
+    n_folders = len(conf['source']['folder_list'])
+    temp = Template(conf['source']['folder'])
+    regex = re.sub(temp.pattern, "(.*)", temp.template)
+    return [d[0] for d in os.walk(conf['source']['watch']) \
+            if (re.match(regex,d[0]) != None) and \
+               (len(d[0].split("/")) == n_folders)]
+
 
 def build_sync_paths(input_path_list):
     """
@@ -100,13 +116,14 @@ def run_rsync(source, target, file_list, client_ssh, options="", exclude_list=[]
                 'target' : "",
                 'user'   : "",
                 'group'  : "",
-                'chmod'  : conf['permission']
+                'chmod'  : ""
                }
 
     # pre-chown: change the owner of the target dir to the login user
-    cmd_dict['user'] = conf['user']
-    cmd_dict['group'] = conf['user']
+    cmd_dict['user']   = conf['user']
+    cmd_dict['group']  = conf['user']
     cmd_dict['target'] = target
+    cmd_dict['chmod']  = "755"
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
     client_error = stderr.read()
     if client_error:
@@ -146,10 +163,11 @@ def run_rsync(source, target, file_list, client_ssh, options="", exclude_list=[]
         logger.error("Couldn't read the rsync stats: %s"%stdout)
 
     # post-chown: change the owner of the target dir + files to the target user
-    cmd_dict['user'] = conf['owner']
-    cmd_dict['group'] = conf['group']
+    cmd_dict['user']   = conf['owner']
+    cmd_dict['group']  = conf['group']
     cmd_dict['target'] = " ".join(os.path.join(target,f) for f in file_list)
     cmd_dict['target'] += " %s"%target
+    cmd_dict['chmod']  = conf['permission']
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
     client_error = stderr.read()
     if client_error:

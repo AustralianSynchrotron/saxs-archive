@@ -1,7 +1,45 @@
 {% extends "layout.html" %}
+{% block head %}
+    {{ super() }}
+
+{% endblock %}
+
 {% block content %}
+<ul>
+    
+{% for folder in dir_diff %}
+    <li>
+        <h1>{{ folder }}</h1>
+        {% if dir_diff[folder]['trg_folder_exists'] %}
+            <table>
+            {% for file_key, file_dict in dir_diff[folder]['files'].iteritems() %}
+            <tr>
+            <td>{{ file_key }}</td>
 
-<h1>TEST</h1>
-Files
+            {% if file_dict['trg_file_exists'] %}
+                <td>exist</td>
+            {% else %}
+                <td>doesn't exist on target</td>
+            {% endif %}
 
+            {% if file_dict['same_size'] %}
+                <td>same size</td>
+            {% else %}
+                <td>not same size</td>
+            {% endif %}
+
+            {% if file_dict['same_date'] %}
+                <td>same date</td>
+            {% else %}
+                <td>not same date</td>
+            {% endif %}
+            </tr>
+            {% endfor %}
+            </table>
+        {% else %}
+            Folder doesn't exist!
+        {% endif %}
+    </li>
+{% endfor %}
+</ul>
 {% endblock %}

@@ -2,7 +2,7 @@ import json
 from flask import render_template, request, jsonify, redirect, url_for, flash
 from changeover.server import app
 from changeover.common.settings import Settings
-from changeover.server import status, stats, changeoverthread
+from changeover.server import status, stats, files, changeoverthread
 
 
 #---------------------------------
@@ -10,7 +10,7 @@ from changeover.server import status, stats, changeoverthread
 #---------------------------------
 @app.route('/')
 @app.route('/status')
-def index():
+def web_index():
     """
     Returns the status website
     """
@@ -29,7 +29,7 @@ def index():
 
 
 @app.route('/statistics')
-def statistics():
+def web_statistics():
     """
     Returns the statistics website
     """
@@ -38,16 +38,17 @@ def statistics():
 
 
 @app.route('/files')
-def files():
+def web_files():
     """
     Returns the file summary website
     """
     return render_template("files.html",
-                           detector_name = Settings()['server']['name'])
+                           detector_name = Settings()['server']['name'],
+                           dir_diff = files.diff())
 
 
 @app.route('/changeover')
-def changeover():
+def web_changeover():
     """
     Returns the changeover website. Depending whether the changeover process
     is in progress or not the user is redirected to the progress page or
@@ -73,7 +74,7 @@ def changeover():
 
 
 @app.route('/changeover/progress')
-def changeover_progress():
+def web_changeover_progress():
     """
     Returns the changeover progress website. Depending whether the changeover
     process is on-going the changeover_progress or changeover_result page is shown.
@@ -93,7 +94,7 @@ def changeover_progress():
 
 
 @app.route('/settings')
-def settings():
+def web_settings():
     """
     Returns the settings summary website
     """
@@ -152,6 +153,7 @@ def rest_changeover_status():
     Returns the status of the changeover process
     """
     pass
+
 
 @app.route('/rest/changeover/stop', methods=['POST'])
 def rest_changeover_stop():
