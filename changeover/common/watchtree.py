@@ -158,7 +158,10 @@ class Node(object):
                             (event.name, event.pathname))
                 new_node.create(event.pathname)
         else:
-            if event.mask == pyinotify.IN_CLOSE_WRITE:
+            # handle files that have been closed after writing or
+            # files that have been moved to the watched folder.
+            if event.mask == pyinotify.IN_CLOSE_WRITE or \
+               event.mask == pyinotify.IN_MOVED_TO:
                 # Skip files that match the exclude regex
                 if self._regex != None and self._regex.search(event.name) != None:
                     return
