@@ -34,7 +34,7 @@ def folders():
 
         # iterate over the source folders
         for src_folder in src_folders:
-            source, target = syncutils.build_sync_paths(src_folder.split("/"))
+            source, target = syncutils.build_sync_paths(src_folder)
 
             # check if the target folder exists
             target_exists = False

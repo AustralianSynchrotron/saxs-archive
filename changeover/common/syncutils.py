@@ -19,32 +19,51 @@ def get_source_folders():
     regex = re.sub(temp.pattern, "(.*)", temp.template)
     return [d[0] for d in os.walk(conf['source']['watch']) \
             if (re.match(regex,d[0]) != None) and \
-               (len(d[0].split("/")) == n_folders)]
+               (len(d[0].split("/")) >= n_folders)]
 
 
-def build_sync_paths(input_path_list):
+def build_sync_paths(input_path):
     """
     Build the source and target paths for rsync by replacing the
     template parameters with the correct values
-    input_path_list: the triggered directory split into a list of src_folder_list
+    input_path: the triggered directory
     """
     conf = Settings()
+
+    # check the length of the triggered path
+    input_path_list = input_path.split('/')
+    src_path_list = conf['source']['folder_list']
+    if len(input_path_list) < len(src_path_list):
+        raise Exception(("The triggered path (%s) is shorter than the "%input_path)+
+                        ("source path (%s)!"%conf['source']['folder']))
+
     # match the path elements between the input and the config source path
     # and extract the template values from the triggered path
     tmp_dict = {}
-    for i in range(len(conf['source']['folder_list'])):
+    for i in range(len(src_path_list)):
         input_element = input_path_list[i]
-        path_element = conf['source']['folder_list'][i]
+        path_element = src_path_list[i]
         if path_element.startswith('${') and path_element.endswith('}'):
             tmp_dict[path_element[2:len(path_element)-1]] = input_element
         else:
             if path_element != input_element:
-                raise Exception("Non matching path element '%s' \
-                                 found in input path!"%input_element)
+                raise Exception(("Non matching path element '%s' "%input_element)+
+                                 "found in input path!")
 
     # substitute the template parameters in the source and target path
     source = Template(conf['source']['folder']).substitute(tmp_dict)
     target = Template(conf['target']['folder']).substitute(tmp_dict)
+
+    # make sure the triggered path starts with the substituted config source path
+    if not input_path.startswith(source):
+        raise Exception("There is a mismatch between the substituted config source "+
+                        "path (%s) and the triggered path (%s)!"%(input_path, source))
+
+    # append subdirectories
+    if len(input_path_list) > len(src_path_list):
+        post = input_path_list[len(src_path_list):]
+        source = os.path.join(source, *post)
+        target = os.path.join(target, *post)
 
     # make sure the paths end with a trailing slash
     if not source.endswith("/"):

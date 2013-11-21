@@ -41,16 +41,9 @@ class EventHandler(watchtree.WatchTreeFileHandler):
         """
         conf = Settings()
         
-        # check the length of the triggered path
-        path_list = path.split('/')
-        src_path_list = conf['source']['folder_list']
-        if len(path_list) < len(conf['source']['folder_list']):
-            self._logger.error("The triggered path is shorter than the source path!")
-            return
-
         # build the source and target paths for rsync
         try:
-            source, target = syncutils.build_sync_paths(path_list)
+            source, target = syncutils.build_sync_paths(path)
             self._logger.info("%s => %s"%(source, target))
         except Exception, e:
             if self._raven_client != None:
