@@ -61,11 +61,15 @@ class EventHandler(watchtree.WatchTreeFileHandler):
 
             # if the remote directory doesn't exist, create it
             try:
-                _, _, stderr = client.exec_command("ls %s"%target)
+                dir_cmd = "[ -d \"%s\" ] && echo \"True\" || echo \"False\""%target
+                _, stdout, stderr = client.exec_command(dir_cmd)
                 client_error = stderr.read()
                 if client_error:
-                    self._logger.info("Making remote directory: %s"%target)
-                    syncutils.mkdir_remote(target, client)
+                    logger.error("Couldn't check target folder: %s"%client_error.rstrip())
+                else:
+                    if stdout.read().rstrip() == "False":
+                        self._logger.info("Making remote directory: %s"%target)
+                        syncutils.mkdir_remote(target, client)
             except Exception, e:
                 if self._raven_client != None:
                     self._raven_client.captureException()
@@ -79,27 +83,26 @@ class EventHandler(watchtree.WatchTreeFileHandler):
             options += "z" if conf['rsync']['compress']==True else ""
             options += "c" if conf['rsync']['checksum']==True else ""
 
-            try:    
+            try:
                 # run the rsync process and get the stats dictionary
                 rsync_stats = syncutils.run_rsync(source, target, file_list,
                                                   client, options,
                                                   json.loads(conf['rsync']['exclude']))
                 self._write_stats_file(rsync_stats)
 
-                # close ssh connection
-                client.close()
             except Exception, e:
                 if self._raven_client != None:
                     self._raven_client.captureException()
                 else:
                     self._logger.error(e)
-                client.close()
 
         except (paramiko.SSHException, socket.error), e:
             if self._raven_client != None:
                 self._raven_client.captureException()
             else:
                 self._logger.error("SSH connection threw an exception: %s"%e)
+        finally:
+            # close ssh connection
             client.close()
 
 
