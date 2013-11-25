@@ -129,9 +129,10 @@ def run_rsync(source, target, file_list, client_ssh, options="", exclude_list=[]
     Returns a dictionary with information collected from rsync
     """
     conf = Settings()['target']
-    cmd =  "${sudo} chown ${user}:${group} ${target}"
-    cmd += " && ${sudo} chmod ${chmod} ${target}"
+    cmd =  "${sudo} chown ${options} ${user}:${group} ${target}"
+    cmd += " && ${sudo} chmod ${options} ${chmod} ${target}"
     cmd_dict = {'sudo'   : "sudo" if conf['sudo']==True else "",
+                'options': "",
                 'target' : "",
                 'user'   : "",
                 'group'  : "",
@@ -184,9 +185,19 @@ def run_rsync(source, target, file_list, client_ssh, options="", exclude_list=[]
     # post-chown: change the owner of the target dir + files to the target user
     cmd_dict['user']   = conf['owner']
     cmd_dict['group']  = conf['group']
-    cmd_dict['target'] = " ".join(os.path.join(target,f) for f in file_list)
-    cmd_dict['target'] += " %s"%target
+    cmd_dict['options'] = "-R"
+    #cmd_dict['target'] = " ".join(os.path.join(target,f) for f in file_list)
     cmd_dict['chmod']  = conf['permission']
+
+    #for f in file_list:
+    #    cmd_dict['target'] = os.path.join(target,f)
+    #    _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
+    #    client_error = stderr.read()
+    #    if client_error:
+    #        raise Exception("Couldn't change the ownership of the target file: '%s'"\
+    #                        %client_error.rstrip())
+
+    cmd_dict['target'] = target
     _, _, stderr = client_ssh.exec_command(Template(cmd).substitute(cmd_dict))
     client_error = stderr.read()
     if client_error:

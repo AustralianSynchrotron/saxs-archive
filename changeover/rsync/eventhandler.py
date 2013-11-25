@@ -1,6 +1,7 @@
 import os
 import json
 import socket
+import time
 import paramiko
 from datetime import datetime, date
 from string import Template
@@ -39,6 +40,7 @@ class EventHandler(watchtree.WatchTreeFileHandler):
         path: The source path for the rsync process
         file_list: The list of files that should be rsynced
         """
+        start_time = time.time()
         conf = Settings()
         
         # build the source and target paths for rsync
@@ -105,6 +107,11 @@ class EventHandler(watchtree.WatchTreeFileHandler):
             # close ssh connection
             client.close()
 
+            # log time
+            self._logger.info("Files synced: %i"%len(file_list))
+            self._logger.info("Time per synced file: %.2f s"%\
+                              ((time.time()-start_time)/(1.0*len(file_list))))
+            
 
     def _write_stats_file(self, statistics):
         """
